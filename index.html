@@ -2,159 +2,193 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<title>彩色音符樂譜製作雛形 - 點擊版</title>
+<title>彩色音符樂譜製作 - A4 教材版</title>
 <style>
-  /* 頁面基本排版及顏色 */
   body { 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
     display: flex; 
-    background-color: #fcf7ec; 
+    background-color: #e9ecef; /* 改為較深嘅灰色背景，凸顯白紙 */
     margin: 0; 
     padding: 20px; 
+    justify-content: center; /* 將內容置中 */
   }
   
-  /* 左邊工具列 */
   #sidebar { 
-    width: 250px; 
+    width: 280px; 
     background-color: white; 
     padding: 20px; 
-    border-radius: 15px; 
-    box-shadow: 0 4px 8px rgba(0,0,0,0.05); 
-    margin-right: 20px; 
+    border-radius: 10px; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+    margin-right: 30px; 
+    display: flex;
+    flex-direction: column;
+    height: fit-content;
   }
   
-  /* 右邊樂譜畫布 */
+  /* A4 比例畫布設計 */
   #canvas-area { 
-    flex-grow: 1; 
-    background-color: white; 
-    border-radius: 15px; 
-    box-shadow: 0 4px 8px rgba(0,0,0,0.05); 
-    padding: 40px; 
+    width: 794px; /* A4 闊度比例 */
+    height: 1123px; /* A4 高度比例 */
+    background-color: #fffaf0; /* 微微嘅溫暖紙色 */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
     position: relative; 
-    min-height: 600px; 
     overflow: hidden; 
-    cursor: crosshair; /* 游標變成十字，提示可以點擊 */
+    cursor: crosshair; 
+    padding-top: 50px;
+    box-sizing: border-box;
   }
   
-  h2 { font-size: 18px; color: #555; text-align: center; }
+  h2 { font-size: 16px; color: #444; border-bottom: 2px solid #eee; padding-bottom: 8px; }
   
-  /* 音符選擇區排版 */
-  .note-palette { 
+  .tool-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  
+  /* 共通工具樣式 */
+  .tool {
     display: flex; 
-    flex-wrap: wrap; 
-    gap: 12px; 
+    align-items: center; 
     justify-content: center; 
+    cursor: pointer; 
+    user-select: none; 
+    box-shadow: 1px 2px 4px rgba(0,0,0,0.2); 
+    transition: transform 0.1s, border 0.1s;
+    box-sizing: border-box;
   }
   
-  /* 音符圓圈基本樣式 */
+  .tool.selected { border: 3px solid #333; transform: scale(1.15); }
+
+  /* 譜號樣式 */
+  .clef-tool {
+    width: 50px;
+    height: 60px;
+    font-size: 45px;
+    background-color: transparent;
+    box-shadow: none;
+    color: #333;
+  }
+  .clef-tool.selected { border: none; transform: scale(1.2); color: #ff4757; }
+
+  /* 音符樣式 */
   .note { 
     width: 45px; 
     height: 45px; 
     border-radius: 50%; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
     color: white; 
     font-weight: bold; 
-    cursor: pointer; /* 游標變成手指 */
-    user-select: none; 
     font-size: 18px; 
-    box-shadow: 1px 2px 4px rgba(0,0,0,0.2); 
-    transition: transform 0.1s, border 0.1s;
   }
   
-  /* 被選中時嘅視覺效果（加粗邊框同稍微放大） */
-  .note.selected {
-    border: 3px solid #333;
-    transform: scale(1.15);
-  }
+  .c { background-color: #ff3838; } 
+  .d { background-color: #ff9f1a; } 
+  .e { background-color: #fff200; color: #333; } 
+  .f { background-color: #32ff7e; color: #333; } 
+  .g { background-color: #18dcff; color: #333; } 
+  .a { background-color: #17c0eb; } 
+  .b { background-color: #c56cf0; } 
 
-  /* 根據要求更新：七彩音符顏色及字母 */
-  .c { background-color: #ff3838; } /* 紅 */
-  .d { background-color: #ff9f1a; } /* 橙 */
-  .e { background-color: #fff200; color: #333; } /* 黃 */
-  .f { background-color: #32ff7e; color: #333; } /* 青綠 */
-  .g { background-color: #18dcff; color: #333; } /* 淺藍 */
-  .a { background-color: #17c0eb; } /* 深藍 (調整為稍深且清晰嘅藍色) */
-  .b { background-color: #c56cf0; } /* 紫 */
-
-  /* 簡單嘅五線譜裝飾（背景用） */
-  .line { width: 100%; height: 2px; background-color: #e0e0e0; margin-bottom: 25px; }
-  .staff { margin-top: 80px; pointer-events: none; /* 防止點擊到線條影響定位 */ }
+  /* 多行五線譜設定 */
+  .staff-block { margin-bottom: 120px; /* 每行樂譜之間嘅距離 */ margin-top: 50px; pointer-events: none; }
+  .line { width: 90%; margin: 0 auto 43px auto; height: 2px; background-color: #bdc3c7; }
+  
+  /* 放置後嘅元素 */
+  .placed-item { cursor: pointer; position: absolute; }
+  .placed-item:hover { opacity: 0.7; }
+  
+  .btn { margin-top: 10px; padding: 10px; border-radius: 5px; cursor: pointer; border: 1px solid #ccc; background: #f8f9fa; }
 </style>
 </head>
 <body>
 
-<!-- 左邊：工具列 -->
 <div id="sidebar">
-  <h2>1. 選擇音符</h2>
-  <div class="note-palette">
-    <!-- 預設選中 C 音 -->
-    <div class="note c selected" onclick="selectNote(this)">C</div>
-    <div class="note d" onclick="selectNote(this)">D</div>
-    <div class="note e" onclick="selectNote(this)">E</div>
-    <div class="note f" onclick="selectNote(this)">F</div>
-    <div class="note g" onclick="selectNote(this)">G</div>
-    <div class="note a" onclick="selectNote(this)">A</div>
-    <div class="note b" onclick="selectNote(this)">B</div>
+  <h2>1. 譜號 (點擊選擇)</h2>
+  <div class="tool-group">
+    <div class="tool clef-tool selected" onclick="selectTool(this)">𝄞</div>
+    <div class="tool clef-tool" onclick="selectTool(this)">𝄢</div>
   </div>
-  <hr style="margin: 30px 0; border: 0; border-top: 1px dashed #ccc;">
-  <h2>2. 點擊樂譜</h2>
-  <p style="font-size: 13px; color: #888; text-align: center;">操作說明：喺上面揀好顏色，然後喺右邊空白地方或者線上點擊一下，就可以印上音符。</p>
+
+  <h2>2. 彩色音符</h2>
+  <div class="tool-group">
+    <div class="tool note c" onclick="selectTool(this)">C</div>
+    <div class="tool note d" onclick="selectTool(this)">D</div>
+    <div class="tool note e" onclick="selectTool(this)">E</div>
+    <div class="tool note f" onclick="selectTool(this)">F</div>
+    <div class="tool note g" onclick="selectTool(this)">G</div>
+    <div class="tool note a" onclick="selectTool(this)">A</div>
+    <div class="tool note b" onclick="selectTool(this)">B</div>
+  </div>
+  
+  <h2>3. 編輯工具</h2>
+  <button class="btn" onclick="undoLast()">↶ 復原上一步</button>
+  <button class="btn" onclick="clearAll()" style="color: red;">🗑️ 清除畫布</button>
 </div>
 
-<!-- 右邊：畫布區 -->
-<!-- 點擊畫布時觸發 addNote 函數 -->
-<div id="canvas-area" onclick="addNote(event)">
-  <!-- 畫面上嘅五線譜 -->
-  <div class="staff">
-      <div class="line"></div>
-      <div class="line"></div>
-      <div class="line"></div>
-      <div class="line"></div>
-      <div class="line"></div>
+<!-- A4 畫布 -->
+<div id="canvas-area" onclick="addItem(event)">
+  <!-- 第 1 行五線譜 -->
+  <div class="staff-block">
+      <div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div>
+  </div>
+  <!-- 第 2 行五線譜 -->
+  <div class="staff-block">
+      <div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div>
+  </div>
+  <!-- 第 3 行五線譜 -->
+  <div class="staff-block">
+      <div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div>
+  </div>
+  <!-- 第 4 行五線譜 -->
+  <div class="staff-block">
+      <div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div>
   </div>
 </div>
 
 <script>
-  // 記錄目前選中咗邊一個音符嘅 HTML 代碼
-  let currentSelectedNoteHTML = document.querySelector('.note.c').outerHTML;
+  let currentSelectedHTML = document.querySelector('.tool.selected').outerHTML;
+  let isClef = true; // 記錄目前揀嘅係咪譜號，用嚟微調擺放位置
 
-  // 當使用者喺左邊點擊音符時執行
-  function selectNote(element) {
-    // 移除所有音符嘅「selected」特效
-    const allNotes = document.querySelectorAll('.note-palette .note');
-    allNotes.forEach(note => note.classList.remove('selected'));
-    
-    // 為剛點擊嘅音符加上「selected」特效
+  function selectTool(element) {
+    const allTools = document.querySelectorAll('.tool');
+    allTools.forEach(t => t.classList.remove('selected'));
     element.classList.add('selected');
-    
-    // 更新目前選中嘅音符資料
-    currentSelectedNoteHTML = element.outerHTML;
+    currentSelectedHTML = element.outerHTML;
+    isClef = element.classList.contains('clef-tool');
   }
 
-  // 當使用者喺右邊畫布點擊時執行
-  function addNote(event) {
-    // 建立一個隱形嘅暫存區嚟轉換 HTML
+  function addItem(event) {
+    if(event.target.classList.contains('placed-item') || event.target.closest('.placed-item')) return;
+
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = currentSelectedNoteHTML;
-    const newNote = tempDiv.firstChild;
+    tempDiv.innerHTML = currentSelectedHTML;
+    const newItem = tempDiv.firstChild;
     
-    // 移除新音符身上不必要嘅屬性（例如 selected 特效同 onclick 事件）
-    newNote.classList.remove('selected');
-    newNote.removeAttribute('onclick');
+    newItem.classList.remove('selected');
+    newItem.removeAttribute('onclick');
+    newItem.classList.add('placed-item'); 
+    newItem.title = "雙擊刪除"; 
+    newItem.ondblclick = function(e) { e.stopPropagation(); this.remove(); };
     
-    // 設定絕對位置，令音符可以自由放置
-    newNote.style.position = 'absolute';
-    
-    // 計算滑鼠點擊嘅位置，並將音符嘅中心點對準滑鼠游標
-    // 音符寬度/高度係 45px，所以減去 22.5 來置中
     const canvasRect = document.getElementById('canvas-area').getBoundingClientRect();
-    newNote.style.left = (event.clientX - canvasRect.left - 22.5) + 'px';
-    newNote.style.top = (event.clientY - canvasRect.top - 22.5) + 'px';
     
-    // 將生成嘅新音符加入畫布中
-    document.getElementById('canvas-area').appendChild(newNote);
+    // 根據係譜號定係音符，調整置中嘅偏移量
+    const offsetX = isClef ? 25 : 22.5; 
+    const offsetY = isClef ? 30 : 22.5;
+
+    newItem.style.left = (event.clientX - canvasRect.left - offsetX) + 'px';
+    newItem.style.top = (event.clientY - canvasRect.top - offsetY) + 'px';
+    
+    document.getElementById('canvas-area').appendChild(newItem);
+  }
+
+  function undoLast() {
+    const canvas = document.getElementById('canvas-area');
+    const items = canvas.querySelectorAll('.placed-item');
+    if (items.length > 0) canvas.removeChild(items[items.length - 1]);
+  }
+
+  function clearAll() {
+    if(confirm("確定要清除整張 A4 紙嗎？")) {
+        const items = document.querySelectorAll('.placed-item');
+        items.forEach(item => item.remove());
+    }
   }
 </script>
 
