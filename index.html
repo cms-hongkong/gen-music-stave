@@ -2,13 +2,13 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<title>彩色音符樂譜製作雛形</title>
+<title>彩色音符樂譜製作雛形 - 點擊版</title>
 <style>
   /* 頁面基本排版及顏色 */
   body { 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
     display: flex; 
-    background-color: #fcf7ec; /* 仿照圖片帶有微暖嘅底色 */
+    background-color: #fcf7ec; 
     margin: 0; 
     padding: 20px; 
   }
@@ -33,6 +33,7 @@
     position: relative; 
     min-height: 600px; 
     overflow: hidden; 
+    cursor: crosshair; /* 游標變成十字，提示可以點擊 */
   }
   
   h2 { font-size: 18px; color: #555; text-align: center; }
@@ -45,7 +46,7 @@
     justify-content: center; 
   }
   
-  /* 音符圓圈樣式 */
+  /* 音符圓圈基本樣式 */
   .note { 
     width: 45px; 
     height: 45px; 
@@ -55,48 +56,56 @@
     justify-content: center; 
     color: white; 
     font-weight: bold; 
-    cursor: grab; 
+    cursor: pointer; /* 游標變成手指 */
     user-select: none; 
-    font-size: 14px; 
+    font-size: 18px; 
     box-shadow: 1px 2px 4px rgba(0,0,0,0.2); 
+    transition: transform 0.1s, border 0.1s;
   }
-  .note:active { cursor: grabbing; }
   
-  /* 七彩音符顏色 (對應 Do Re Mi) */
-  .do { background-color: #ff5252; }
-  .re { background-color: #ff9f43; }
-  .mi { background-color: #feca57; color: #555; }
-  .fa { background-color: #1dd1a1; }
-  .sol { background-color: #54a0ff; }
-  .la { background-color: #5f27cd; }
-  .ti { background-color: #ff9ff3; color: #555; }
+  /* 被選中時嘅視覺效果（加粗邊框同稍微放大） */
+  .note.selected {
+    border: 3px solid #333;
+    transform: scale(1.15);
+  }
+
+  /* 根據要求更新：七彩音符顏色及字母 */
+  .c { background-color: #ff3838; } /* 紅 */
+  .d { background-color: #ff9f1a; } /* 橙 */
+  .e { background-color: #fff200; color: #333; } /* 黃 */
+  .f { background-color: #32ff7e; color: #333; } /* 青綠 */
+  .g { background-color: #18dcff; color: #333; } /* 淺藍 */
+  .a { background-color: #17c0eb; } /* 深藍 (調整為稍深且清晰嘅藍色) */
+  .b { background-color: #c56cf0; } /* 紫 */
 
   /* 簡單嘅五線譜裝飾（背景用） */
   .line { width: 100%; height: 2px; background-color: #e0e0e0; margin-bottom: 25px; }
-  .staff { margin-top: 80px; }
+  .staff { margin-top: 80px; pointer-events: none; /* 防止點擊到線條影響定位 */ }
 </style>
 </head>
 <body>
 
 <!-- 左邊：工具列 -->
 <div id="sidebar">
-  <h2>拖曳音符到右邊</h2>
+  <h2>1. 選擇音符</h2>
   <div class="note-palette">
-    <!-- 設定 draggable="true" 允許拖曳 -->
-    <div class="note do" draggable="true" ondragstart="drag(event)">Do</div>
-    <div class="note re" draggable="true" ondragstart="drag(event)">Re</div>
-    <div class="note mi" draggable="true" ondragstart="drag(event)">Mi</div>
-    <div class="note fa" draggable="true" ondragstart="drag(event)">Fa</div>
-    <div class="note sol" draggable="true" ondragstart="drag(event)">Sol</div>
-    <div class="note la" draggable="true" ondragstart="drag(event)">La</div>
-    <div class="note ti" draggable="true" ondragstart="drag(event)">Ti</div>
+    <!-- 預設選中 C 音 -->
+    <div class="note c selected" onclick="selectNote(this)">C</div>
+    <div class="note d" onclick="selectNote(this)">D</div>
+    <div class="note e" onclick="selectNote(this)">E</div>
+    <div class="note f" onclick="selectNote(this)">F</div>
+    <div class="note g" onclick="selectNote(this)">G</div>
+    <div class="note a" onclick="selectNote(this)">A</div>
+    <div class="note b" onclick="selectNote(this)">B</div>
   </div>
   <hr style="margin: 30px 0; border: 0; border-top: 1px dashed #ccc;">
-  <p style="font-size: 13px; color: #888; text-align: center;">操作說明：用滑鼠㩒實左邊嘅彩色圓圈，拉去右邊嘅白紙上面放手。</p>
+  <h2>2. 點擊樂譜</h2>
+  <p style="font-size: 13px; color: #888; text-align: center;">操作說明：喺上面揀好顏色，然後喺右邊空白地方或者線上點擊一下，就可以印上音符。</p>
 </div>
 
 <!-- 右邊：畫布區 -->
-<div id="canvas-area" ondragover="allowDrop(event)" ondrop="drop(event)">
+<!-- 點擊畫布時觸發 addNote 函數 -->
+<div id="canvas-area" onclick="addNote(event)">
   <!-- 畫面上嘅五線譜 -->
   <div class="staff">
       <div class="line"></div>
@@ -108,46 +117,43 @@
 </div>
 
 <script>
-  // 記錄被拖曳嘅音符 HTML 同滑鼠點擊位置
-  let draggedElementHtml = "";
-  let offsetX = 0;
-  let offsetY = 0;
+  // 記錄目前選中咗邊一個音符嘅 HTML 代碼
+  let currentSelectedNoteHTML = document.querySelector('.note.c').outerHTML;
 
-  // 開始拖曳時執行
-  function drag(ev) {
-    draggedElementHtml = ev.target.outerHTML;
-    const rect = ev.target.getBoundingClientRect();
-    offsetX = ev.clientX - rect.left;
-    offsetY = ev.clientY - rect.top;
-  }
-
-  // 允許將物件放低（Drop）
-  function allowDrop(ev) {
-    ev.preventDefault(); 
-  }
-
-  // 放低物件時執行
-  function drop(ev) {
-    ev.preventDefault();
+  // 當使用者喺左邊點擊音符時執行
+  function selectNote(element) {
+    // 移除所有音符嘅「selected」特效
+    const allNotes = document.querySelectorAll('.note-palette .note');
+    allNotes.forEach(note => note.classList.remove('selected'));
     
-    // 建立一個新嘅音符元素
+    // 為剛點擊嘅音符加上「selected」特效
+    element.classList.add('selected');
+    
+    // 更新目前選中嘅音符資料
+    currentSelectedNoteHTML = element.outerHTML;
+  }
+
+  // 當使用者喺右邊畫布點擊時執行
+  function addNote(event) {
+    // 建立一個隱形嘅暫存區嚟轉換 HTML
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = draggedElementHtml;
+    tempDiv.innerHTML = currentSelectedNoteHTML;
     const newNote = tempDiv.firstChild;
     
-    // 移除新音符嘅拖曳屬性，等佢固定喺畫布上
-    newNote.removeAttribute('draggable');
-    newNote.style.cursor = 'default';
+    // 移除新音符身上不必要嘅屬性（例如 selected 特效同 onclick 事件）
+    newNote.classList.remove('selected');
+    newNote.removeAttribute('onclick');
     
-    // 設定絕對位置 (Absolute Positioning)
+    // 設定絕對位置，令音符可以自由放置
     newNote.style.position = 'absolute';
     
-    // 計算並設定擺放嘅 X 同 Y 座標
+    // 計算滑鼠點擊嘅位置，並將音符嘅中心點對準滑鼠游標
+    // 音符寬度/高度係 45px，所以減去 22.5 來置中
     const canvasRect = document.getElementById('canvas-area').getBoundingClientRect();
-    newNote.style.left = (ev.clientX - canvasRect.left - offsetX) + 'px';
-    newNote.style.top = (ev.clientY - canvasRect.top - offsetY) + 'px';
+    newNote.style.left = (event.clientX - canvasRect.left - 22.5) + 'px';
+    newNote.style.top = (event.clientY - canvasRect.top - 22.5) + 'px';
     
-    // 將新音符加入右邊嘅畫布中
+    // 將生成嘅新音符加入畫布中
     document.getElementById('canvas-area').appendChild(newNote);
   }
 </script>
