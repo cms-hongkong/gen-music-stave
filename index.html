@@ -24,7 +24,7 @@
         .btn-student { background: #e74c3c; }
         .btn-export { background: #27ae60; }
         .btn-play { background: #8e44ad; }
-        .btn-action { background: #95a5a6; color: white; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-action { background: #95a5a6; color: white; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; }
 
         /* 控制面板 */
         .control-panel {
@@ -51,20 +51,26 @@
             min-height: 250px; background: white; border: 3px dashed #cbd5e1; 
             border-radius: 20px; margin: 0 auto 20px auto; width: 95%; max-width: 1000px;
             padding: 30px 25px; display: flex; flex-wrap: wrap; 
-            align-items: center;
-            justify-content: flex-start;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-            gap: 0; 
+            align-items: center; justify-content: flex-start;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); gap: 0; 
         }
 
-        /* 項目容器：加大 margin 以符合一行約 8 拍的設定 */
+        /* 項目容器 */
         .item-container {
             display: flex; flex-direction: column; align-items: center; 
             margin-right: 18px; margin-bottom: 25px; justify-content: center;
+            cursor: pointer; /* 顯示可點擊 */
         }
         .item-container.half-beat { margin-right: 4px; }
 
-        /* 拍子記號放大 */
+        /* 選中特效 */
+        .selected-item .score-note, .selected-item .bar-line, .selected-item.line-break.edit-mode {
+            box-shadow: 0 0 0 4px #3498db, 0 8px 15px rgba(0,0,0,0.3) !important;
+            transform: scale(1.1); z-index: 5;
+        }
+        .selected-item .bar-line { background-color: #3498db; }
+
+        /* 拍子記號 */
         .time-sig {
             font-size: 38px; font-weight: bold; color: #2c3e50; 
             display: flex; flex-direction: column; line-height: 0.9;
@@ -74,45 +80,48 @@
 
         .top-text, .bottom-text {
             font-size: 16px; font-weight: bold; color: #555; 
-            height: 24px; display: flex; align-items: center; justify-content: center;
-            width: 100%;
+            height: 24px; display: flex; align-items: center; justify-content: center; width: 100%;
         }
 
         /* 音符主體 */
         .score-note { 
             display: flex; align-items: center; justify-content: center; 
             color: #333; animation: popIn 0.3s ease; 
-            box-shadow: 0 5px 8px rgba(0,0,0,0.2); cursor: pointer; 
-            transition: transform 0.1s, box-shadow 0.2s; position: relative;
-            margin: 5px 0;
+            box-shadow: 0 5px 8px rgba(0,0,0,0.2); transition: transform 0.1s, box-shadow 0.2s; 
+            position: relative; margin: 5px 0;
         }
         
-        /* 內部字體放大 */
         .note-content { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
         .note-solfege { font-size: 20px; font-weight: bold; }
         .note-pitch { font-size: 13px; opacity: 0.9; font-weight: bold;}
 
-        .playing-highlight { transform: scale(1.15); box-shadow: 0 0 15px 5px rgba(241, 196, 15, 0.8); z-index: 10; }
+        .playing-highlight { transform: scale(1.15); box-shadow: 0 0 15px 5px rgba(241, 196, 15, 0.8) !important; z-index: 10; }
 
-        /* 全面放大音符尺寸 */
         .beat-05 { width: 55px; height: 55px; border-radius: 50%; }
         .beat-1 { width: 75px; height: 75px; border-radius: 50%; }
         .beat-2 { width: 145px; height: 75px; border-radius: 40px; }
         .beat-4 { width: 280px; height: 75px; border-radius: 40px; }
         
         .rest-note { background-color: #bdc3c7; color: white; font-size: 24px; font-weight: bold; border-radius: 20px; }
-        
-        /* 小節線加高加粗 */
-        .bar-line { width: 3px; height: 75px; background-color: #34495e; margin: 0 15px; border-radius: 2px;}
+        .bar-line { width: 3px; height: 75px; background-color: #34495e; margin: 0 15px; border-radius: 2px; transition: 0.2s;}
 
-        /* 高低音黑點調整 */
         .dot { position: absolute; font-size: 30px; line-height: 1; color: black; font-weight: bold;}
         .dot-high { top: -18px; }
         .dot-low { bottom: -18px; }
 
+        /* 換行提示樣式 */
+        .line-break { flex-basis: 100%; height: 0; margin: 0; cursor: pointer; transition: 0.2s;}
+        .line-break.edit-mode {
+            height: 20px; border-bottom: 2px dashed #cbd5e1;
+            margin-bottom: 20px; margin-top: 10px; position: relative;
+        }
+        .line-break.edit-mode::after {
+            content: "↩️ 換行位置"; position: absolute; right: 10px; top: -8px;
+            font-size: 12px; color: #94a3b8; font-weight: bold; background: white; padding: 0 5px;
+        }
+
         @keyframes popIn { 0% { transform: scale(0); opacity: 0;} 100% { transform: scale(1); opacity: 1;} }
 
-        /* 琴鍵按鈕保留原本大小，以免控制區過大 */
         .keyboard { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
         .note-btn { 
             width: 65px; height: 65px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.5); 
@@ -122,7 +131,6 @@
         }
         .note-btn:active { transform: scale(0.9); }
         
-        /* 顏色設定 */
         .c-red { background-color: #FF4D4D; color: white; }
         .d-orange { background-color: #FF9E2C; color: white; }
         .e-yellow { background-color: #FFD700; color: black;}
@@ -148,6 +156,9 @@
                 display: block; text-align: center; margin-top: 40px; 
                 font-size: 14px; color: #7f8c8d; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px;
             }
+            .line-break.edit-mode { border: none !important; height: 0 !important; margin: 0 !important; }
+            .line-break.edit-mode::after { display: none !important; }
+            .selected-item .score-note, .selected-item .bar-line { box-shadow: none !important; transform: scale(1) !important; background-color: inherit; }
         }
     </style>
 </head>
@@ -232,11 +243,15 @@
                     <input type="text" id="lyricInput" placeholder="例: 爸">
                 </div>
                 <div class="control-group" style="background: transparent;">
-                    <button class="btn-action" style="background:#34495e;" onclick="addScoreItem({type: 'barline'})">➕ 小節線 (|)</button>
-                    <button class="btn-action" onclick="undo()" style="background:#e67e22;">↩️ 復原</button>
+                    <button class="btn-action" style="background:#34495e;" onclick="addScoreItem({type: 'barline'})">➕ 小節線</button>
+                    <button class="btn-action" style="background:#2980b9;" onclick="addScoreItem({type: 'linebreak'})">↩️ 換行</button>
+                    
+                    <!-- 復原 / 刪除按鈕 (動態切換) -->
+                    <button id="undoBtn" class="btn-action" onclick="undoOrDelete()" style="background:#e67e22;">↩️ 復原</button>
                     <button class="btn-action" onclick="clearScore()" style="background:#e74c3c;">🗑️ 清空</button>
                 </div>
             </div>
+            <p style="margin: 0; font-size: 13px; color: #7f8c8d;">💡 提示：點擊樂譜上的音符可將其「選取」，然後直接撳下方琴鍵即可替換該音符。</p>
         </div>
         
         <div class="keyboard" id="keyboardArea">
@@ -256,15 +271,15 @@
     </div>
 
     <div id="displayTitle" class="sheet-title hidden"></div>
-    <div class="score-area" id="scoreArea"></div>
+    <div class="score-area" id="scoreArea" onclick="handleScoreClick(event)"></div>
     
-    <!-- PDF 專用頁尾 -->
     <div class="print-only-footer">© 卡雅音樂教室 Clare Music Studio</div>
 
     <script>
         let isTeacherMode = true;
         let scoreData = []; 
         let isPlayingAll = false;
+        let selectedIndex = null; // 記錄目前被選中修改的音符 Index
         
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
@@ -346,7 +361,7 @@
             playTone(finalFreq, octaveIndex, beats, isRest);
             
             if (isTeacherMode) {
-                addScoreItem({
+                const newItem = {
                     type: isRest ? 'rest' : 'note',
                     baseFreq: finalFreq,
                     octave: octaveIndex,
@@ -358,23 +373,61 @@
                     lyric: lyric,
                     isRest: isRest,
                     id: Date.now() 
-                });
+                };
+
+                if (selectedIndex !== null) {
+                    // 如果有選中音符，直接替換
+                    newItem.id = scoreData[selectedIndex].id || Date.now();
+                    scoreData[selectedIndex] = newItem;
+                    selectedIndex = null; // 替換後取消選取
+                } else {
+                    // 否則加喺最後
+                    scoreData.push(newItem);
+                }
+
                 document.getElementById('fingeringInput').value = '';
                 document.getElementById('lyricInput').value = '';
                 document.getElementById('accidentalSelect').value = "0";
+                renderScore();
             }
         }
 
         function addScoreItem(item) {
-            scoreData.push(item); renderScore();
+            if (selectedIndex !== null) {
+                // 替換選中嘅位置為小節線或換行
+                scoreData[selectedIndex] = item;
+                selectedIndex = null;
+            } else {
+                scoreData.push(item);
+            }
+            renderScore();
         }
 
-        function undo() {
-            if (scoreData.length > 0) { scoreData.pop(); renderScore(); }
+        // 智能復原 / 刪除
+        function undoOrDelete() {
+            if (selectedIndex !== null) {
+                // 如果有選中，只刪除嗰個音符
+                scoreData.splice(selectedIndex, 1);
+                selectedIndex = null;
+            } else if (scoreData.length > 0) {
+                // 否則正常刪除最後一個
+                scoreData.pop();
+            }
+            renderScore();
         }
 
         function clearScore() {
-            scoreData = []; renderScore();
+            scoreData = []; 
+            selectedIndex = null;
+            renderScore();
+        }
+
+        // 處理點擊空白處取消選取
+        function handleScoreClick(e) {
+            if (e.target.id === 'scoreArea') {
+                selectedIndex = null;
+                renderScore();
+            }
         }
 
         function renderScore() {
@@ -392,6 +445,18 @@
             `;
             scoreArea.appendChild(timeContainer);
 
+            // 更新 Undo 按鈕文字
+            const undoBtn = document.getElementById('undoBtn');
+            if (undoBtn) {
+                if (selectedIndex !== null) {
+                    undoBtn.innerText = '✂️ 刪除選取';
+                    undoBtn.style.background = '#d35400';
+                } else {
+                    undoBtn.innerText = '↩️ 復原';
+                    undoBtn.style.background = '#e67e22';
+                }
+            }
+
             if (scoreData.length === 0) {
                 const emptyMsg = document.createElement('span');
                 emptyMsg.style.color = '#94a3b8';
@@ -404,7 +469,9 @@
 
             const displayMode = document.getElementById('displaySelect').value;
 
-            scoreData.forEach((item) => {
+            scoreData.forEach((item, index) => {
+                let mainElement;
+
                 if (item.type === 'barline') {
                     const barContainer = document.createElement('div');
                     barContainer.className = 'item-container';
@@ -413,8 +480,13 @@
                         <div class="bar-line"></div>
                         <div class="bottom-text"></div>
                     `;
-                    scoreArea.appendChild(barContainer);
+                    mainElement = barContainer;
                 } 
+                else if (item.type === 'linebreak') {
+                    const breakDiv = document.createElement('div');
+                    breakDiv.className = isTeacherMode ? 'line-break edit-mode' : 'line-break';
+                    mainElement = breakDiv;
+                }
                 else if (item.type === 'note' || item.type === 'rest') {
                     const container = document.createElement('div');
                     container.className = 'item-container';
@@ -452,13 +524,6 @@
                     }
 
                     noteDiv.id = `note-${item.id}`;
-                    
-                    noteDiv.onclick = function() {
-                        if(isPlayingAll) return; 
-                        playTone(item.baseFreq, item.octave, item.beats, item.isRest);
-                        noteDiv.style.transform = 'scale(1.2)';
-                        setTimeout(() => noteDiv.style.transform = 'scale(1)', 150);
-                    };
                     container.appendChild(noteDiv);
 
                     const lyricDiv = document.createElement('div');
@@ -466,7 +531,38 @@
                     lyricDiv.innerText = item.lyric || '';
                     container.appendChild(lyricDiv);
 
-                    scoreArea.appendChild(container);
+                    mainElement = container;
+                }
+
+                // 加入選取與點擊邏輯
+                if (mainElement) {
+                    if (selectedIndex === index) {
+                        mainElement.classList.add('selected-item');
+                    }
+
+                    mainElement.onclick = function(e) {
+                        e.stopPropagation(); // 防止觸發背景點擊
+                        if(isPlayingAll) return; 
+
+                        if (item.type === 'note' || item.type === 'rest') {
+                            playTone(item.baseFreq, item.octave, item.beats, item.isRest);
+                            if (!isTeacherMode) {
+                                const noteDiv = mainElement.querySelector('.score-note');
+                                if (noteDiv) {
+                                    noteDiv.style.transform = 'scale(1.2)';
+                                    setTimeout(() => noteDiv.style.transform = 'scale(1)', 150);
+                                }
+                            }
+                        }
+
+                        if (isTeacherMode) {
+                            // 切換選取狀態
+                            selectedIndex = (selectedIndex === index) ? null : index;
+                            renderScore();
+                        }
+                    };
+
+                    scoreArea.appendChild(mainElement);
                 }
             });
         }
@@ -476,10 +572,14 @@
             if (audioCtx.state === 'suspended') await audioCtx.resume();
             
             isPlayingAll = true;
+            selectedIndex = null; // 播放時取消選取
+            renderScore();
+
             const bpm = parseInt(document.getElementById('bpmSelect').value);
             const beatMs = (60 / bpm) * 1000; 
 
             for (let i = 0; i < scoreData.length; i++) {
+                if (!isPlayingAll) break; // 允許中斷播放
                 const item = scoreData[i];
                 if (item.type === 'note' || item.type === 'rest') {
                     const noteElement = document.getElementById(`note-${item.id}`);
@@ -514,7 +614,9 @@
                 btn.className = 'btn-primary btn-student';
                 teacherControls.classList.add('hidden');
                 studentControls.classList.remove('hidden');
+                selectedIndex = null; // 切換到學生模式時取消選取
             }
+            renderScore();
         }
         
         renderScore();
