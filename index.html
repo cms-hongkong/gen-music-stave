@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>互動彩虹樂譜課堂 v3</title>
+    <title>互動彩虹樂譜課堂 v4</title>
     <style>
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -65,49 +65,58 @@
             font-size: 14px; font-weight: bold; color: #555; min-height: 20px;
         }
 
-        /* 音符與小節線 */
+        /* 音符主體 */
         .score-note { 
             display: flex; align-items: center; justify-content: center; 
-            font-weight: bold; font-size: 16px; color: #333; 
-            animation: popIn 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.2); 
-            cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; position: relative;
+            color: #333; animation: popIn 0.3s ease; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2); cursor: pointer; 
+            transition: transform 0.1s, box-shadow 0.2s; position: relative;
         }
+        
+        /* 雙軌文字排版 (唱名 + 音名) */
+        .note-content {
+            display: flex; flex-direction: column; align-items: center; line-height: 1.1;
+        }
+        .note-solfege { font-size: 16px; font-weight: bold; }
+        .note-pitch { font-size: 11px; opacity: 0.9; }
+
         /* 播放時發光特效 */
         .playing-highlight {
             transform: scale(1.15); box-shadow: 0 0 15px 5px rgba(241, 196, 15, 0.8); z-index: 10;
         }
 
-        /* 拍子長短樣式 */
-        .beat-1 { width: 55px; height: 55px; border-radius: 50%; }
-        .beat-2 { width: 100px; height: 55px; border-radius: 30px; }
-        .beat-05 { width: 40px; height: 40px; border-radius: 50%; font-size: 12px; }
+        /* 拍子長短樣式 (加入四拍) */
+        .beat-05 { width: 45px; height: 45px; border-radius: 50%; }
+        .beat-1 { width: 60px; height: 60px; border-radius: 50%; }
+        .beat-2 { width: 110px; height: 60px; border-radius: 30px; }
+        .beat-4 { width: 200px; height: 60px; border-radius: 30px; } /* 四拍超長膠囊 */
         
         .bar-line {
             width: 3px; height: 60px; background-color: #34495e; 
             border-radius: 2px; margin: 0 5px; margin-top: 5px;
         }
 
-        /* 高低音點 */
-        .dot { position: absolute; font-size: 24px; line-height: 1; }
-        .dot-high { top: -15px; }
-        .dot-low { bottom: -15px; }
+        /* 高低音點 (強制黑色) */
+        .dot { position: absolute; font-size: 26px; line-height: 1; color: black; font-weight: bold;}
+        .dot-high { top: -16px; }
+        .dot-low { bottom: -16px; }
 
         @keyframes popIn { 0% { transform: scale(0); opacity: 0;} 100% { transform: scale(1); opacity: 1;} }
 
         /* 琴鍵 */
         .keyboard { display: flex; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
         .note-btn { 
-            width: 65px; height: 65px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.5); 
+            width: 70px; height: 70px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.5); 
             font-size: 16px; font-weight: bold; color: #333; cursor: pointer; 
             box-shadow: 0 6px 8px rgba(0,0,0,0.15); display: flex; flex-direction: column; 
-            justify-content: center; align-items: center;
+            justify-content: center; align-items: center; line-height: 1.1;
         }
         .note-btn:active { transform: scale(0.9); }
         
         /* 顏色設定 */
         .c-red { background-color: #FF4D4D; color: white; }
         .d-orange { background-color: #FF9E2C; color: white; }
-        .e-yellow { background-color: #FFD700; }
+        .e-yellow { background-color: #FFD700; color: black;}
         .f-green { background-color: #2ECC71; color: white; }
         .g-blue { background-color: #3498DB; color: white; }
         .a-indigo { background-color: #2980B9; color: white; }
@@ -128,7 +137,7 @@
 </head>
 <body>
     <div class="header">
-        <h2 style="color: #2c3e50;">🎵 互動彩虹樂譜 (終極版)</h2>
+        <h2 style="color: #2c3e50;">🎵 互動彩虹樂譜 (v4)</h2>
     </div>
 
     <div class="top-bar">
@@ -151,17 +160,18 @@
             <div class="control-group">
                 <label>高低音：</label>
                 <select id="octaveSelect">
-                    <option value="-1">低音 (下點)</option>
+                    <option value="-1">低音 (下黑點)</option>
                     <option value="0" selected>中音</option>
-                    <option value="1">高音 (上點)</option>
+                    <option value="1">高音 (上黑點)</option>
                 </select>
             </div>
             <div class="control-group">
                 <label>拍子：</label>
                 <select id="beatSelect">
-                    <option value="0.5">半拍 (短)</option>
+                    <option value="0.5">半拍</option>
                     <option value="1" selected>一拍</option>
-                    <option value="2">兩拍 (長)</option>
+                    <option value="2">兩拍</option>
+                    <option value="4">四拍 (全音符)</option>
                 </select>
             </div>
             <div class="control-group">
@@ -176,18 +186,19 @@
         </div>
         
         <div class="keyboard" id="keyboardArea">
-            <button class="note-btn c-red" onclick="processInput(261.63, 'Do', 'c-red')">Do</button>
-            <button class="note-btn d-orange" onclick="processInput(293.66, 'Re', 'd-orange')">Re</button>
-            <button class="note-btn e-yellow" onclick="processInput(329.63, 'Mi', 'e-yellow')">Mi</button>
-            <button class="note-btn f-green" onclick="processInput(349.23, 'Fa', 'f-green')">Fa</button>
-            <button class="note-btn g-blue" onclick="processInput(392.00, 'Sol', 'g-blue')">Sol</button>
-            <button class="note-btn a-indigo" onclick="processInput(440.00, 'La', 'a-indigo')">La</button>
-            <button class="note-btn b-purple" onclick="processInput(493.88, 'Ti', 'b-purple')">Ti</button>
+            <!-- 傳入 頻率, 唱名, 音名, 顏色類別 -->
+            <button class="note-btn c-red" onclick="processInput(261.63, 'Do', 'C', 'c-red')"><span>Do</span><span style="font-size:11px;">C</span></button>
+            <button class="note-btn d-orange" onclick="processInput(293.66, 'Re', 'D', 'd-orange')"><span>Re</span><span style="font-size:11px;">D</span></button>
+            <button class="note-btn e-yellow" onclick="processInput(329.63, 'Mi', 'E', 'e-yellow')"><span>Mi</span><span style="font-size:11px;">E</span></button>
+            <button class="note-btn f-green" onclick="processInput(349.23, 'Fa', 'F', 'f-green')"><span>Fa</span><span style="font-size:11px;">F</span></button>
+            <button class="note-btn g-blue" onclick="processInput(392.00, 'Sol', 'G', 'g-blue')"><span>Sol</span><span style="font-size:11px;">G</span></button>
+            <button class="note-btn a-indigo" onclick="processInput(440.00, 'La', 'A', 'a-indigo')"><span>La</span><span style="font-size:11px;">A</span></button>
+            <button class="note-btn b-purple" onclick="processInput(493.88, 'Ti', 'B', 'b-purple')"><span>Ti</span><span style="font-size:11px;">B</span></button>
         </div>
     </div>
 
     <div id="studentControls" class="hidden" style="margin-bottom: 20px;">
-        <p style="font-size: 20px; color: #e74c3c; font-weight: bold;">👀 請望住畫面上嘅音符篤落去啦！</p>
+        <p style="font-size: 20px; color: #e74c3c; font-weight: bold;">👀 請望住畫面上嘅音符篤落去發聲啦！</p>
     </div>
 
     <div class="score-area" id="scoreArea">
@@ -196,17 +207,24 @@
 
     <script>
         let isTeacherMode = true;
-        let scoreData = []; // 儲存整首樂譜資料嘅陣列
+        let scoreData = []; 
         let isPlayingAll = false;
         
+        // 音頻引擎初始化
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
 
-        // 輔助函數：延遲 (等待)
+        // 解決瀏覽器阻擋音頻問題：喺用家第一次點擊畫面時強制解鎖 AudioContext
+        document.body.addEventListener('click', function() {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }, { once: true }); // once: true 代表只會執行一次
+
         const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-        // 發聲函數
         function playTone(baseFreq, octaveIndex, beats) {
+            // 確保每次發聲前 AudioContext 處於活躍狀態
             if (audioCtx.state === 'suspended') audioCtx.resume();
             
             const finalFreq = baseFreq * Math.pow(2, octaveIndex);
@@ -221,15 +239,14 @@
             
             oscillator.start();
             
-            // 一拍基準時間為 0.8秒 (大約 75 BPM)
             const duration = beats * 0.8; 
             gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
             oscillator.stop(audioCtx.currentTime + duration);
         }
 
-        // 處理琴鍵輸入並加入陣列
-        function processInput(baseFreq, solfege, colorClass) {
+        // 處理琴鍵輸入
+        function processInput(baseFreq, solfege, pitch, colorClass) {
             const octaveIndex = parseInt(document.getElementById('octaveSelect').value);
             const beats = parseFloat(document.getElementById('beatSelect').value);
             const fingering = document.getElementById('fingeringInput').value;
@@ -242,23 +259,21 @@
                     baseFreq: baseFreq,
                     octave: octaveIndex,
                     beats: beats,
-                    text: solfege,
+                    solfege: solfege, // 唱名
+                    pitch: pitch,     // 音名
                     color: colorClass,
                     fingering: fingering,
-                    id: Date.now() // 給每個音符一個唯一ID方便綁定動畫
+                    id: Date.now() 
                 });
-                // 輸入後清空指法框，方便打下一個音
                 document.getElementById('fingeringInput').value = '';
             }
         }
 
-        // 加入項目到樂譜陣列並重新渲染
         function addScoreItem(item) {
             scoreData.push(item);
             renderScore();
         }
 
-        // 復原上一步
         function undo() {
             if (scoreData.length > 0) {
                 scoreData.pop();
@@ -266,18 +281,16 @@
             }
         }
 
-        // 清空樂譜
         function clearScore() {
             scoreData = [];
             renderScore();
         }
 
-        // 核心渲染函數 (將資料陣列轉換成畫面)
+        // 渲染畫面
         function renderScore() {
             const scoreArea = document.getElementById('scoreArea');
-            scoreArea.innerHTML = ''; // 清空畫面
+            scoreArea.innerHTML = ''; 
 
-            // 顯示拍子記號
             const timeSig = document.getElementById('timeSigSelect').value.split('/');
             const timeSigDiv = document.createElement('div');
             timeSigDiv.className = 'time-sig';
@@ -304,18 +317,30 @@
                     container.className = 'note-container';
 
                     const noteDiv = document.createElement('div');
-                    let beatClass = item.beats === 2 ? 'beat-2' : (item.beats === 0.5 ? 'beat-05' : 'beat-1');
+                    
+                    // 根據拍子決定樣式 (加入 4拍)
+                    let beatClass = 'beat-1';
+                    if (item.beats === 0.5) beatClass = 'beat-05';
+                    if (item.beats === 2) beatClass = 'beat-2';
+                    if (item.beats === 4) beatClass = 'beat-4';
+                    
                     noteDiv.className = `score-note ${item.color} ${beatClass}`;
                     noteDiv.id = `note-${item.id}`;
-                    noteDiv.innerText = item.text;
+                    
+                    // 雙軌文字排版
+                    noteDiv.innerHTML = `
+                        <div class="note-content">
+                            <span class="note-solfege">${item.solfege}</span>
+                            <span class="note-pitch">${item.pitch}</span>
+                        </div>
+                    `;
 
-                    // 高低音點
+                    // 高低音黑點
                     if (item.octave === 1) noteDiv.innerHTML += '<span class="dot dot-high">•</span>';
                     if (item.octave === -1) noteDiv.innerHTML += '<span class="dot dot-low">•</span>';
 
-                    // 點擊獨立發聲
                     noteDiv.onclick = function() {
-                        if(isPlayingAll) return; // 播放全曲時禁止點擊
+                        if(isPlayingAll) return; 
                         playTone(item.baseFreq, item.octave, item.beats);
                         noteDiv.style.transform = 'scale(1.2)';
                         setTimeout(() => noteDiv.style.transform = 'scale(1)', 150);
@@ -323,10 +348,9 @@
 
                     container.appendChild(noteDiv);
 
-                    // 加入指法/文字標註
                     const fingeringDiv = document.createElement('div');
                     fingeringDiv.className = 'fingering-text';
-                    fingeringDiv.innerText = item.fingering || ''; // 如果冇就留空
+                    fingeringDiv.innerText = item.fingering || ''; 
                     container.appendChild(fingeringDiv);
 
                     scoreArea.appendChild(container);
@@ -334,39 +358,32 @@
             });
         }
 
-        // 播放全曲 (帶視覺追蹤)
         async function playAll() {
             if (isPlayingAll || scoreData.length === 0) return;
+            // 確保播放前音效引擎已喚醒
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            
             isPlayingAll = true;
 
             for (let i = 0; i < scoreData.length; i++) {
                 const item = scoreData[i];
                 if (item.type === 'note') {
                     const noteElement = document.getElementById(`note-${item.id}`);
-                    
-                    // 1. 加上發光特效
                     if(noteElement) noteElement.classList.add('playing-highlight');
                     
-                    // 2. 發聲
                     playTone(item.baseFreq, item.octave, item.beats);
-                    
-                    // 3. 等待音符長度 (一拍 800ms)
                     await sleep(item.beats * 800);
                     
-                    // 4. 移除發光特效
                     if(noteElement) noteElement.classList.remove('playing-highlight');
                 } else if (item.type === 'barline') {
-                    // 遇到小節線，稍微停頓 100ms 增加節奏感
                     await sleep(100);
                 }
             }
             isPlayingAll = false;
         }
 
-        // 匯出 PDF
         function exportPDF() { window.print(); }
 
-        // 切換模式
         function toggleMode() {
             isTeacherMode = !isTeacherMode;
             const btn = document.getElementById('modeBtn');
@@ -386,7 +403,6 @@
             }
         }
         
-        // 初始渲染一次
         renderScore();
     </script>
 </body>
