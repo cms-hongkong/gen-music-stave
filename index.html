@@ -144,26 +144,62 @@
 
         .print-only-footer { display: none; }
 
-        /* PDF 輸出優化設定 */
+        /* =========================================
+           iOS 列印終極修正版 (PDF Export Fixes)
+           ========================================= */
         @media print {
-            @page { margin: 0; }
-            body { background: white; padding: 15mm; margin: 0; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            /* 強制隱藏系統預設的頁首/頁尾 (網址及日期) */
+            @page { 
+                margin: 0 !important; 
+            }
+            body { 
+                background: white; 
+                padding: 15mm !important; 
+                margin: 0 !important; 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important;
+            }
+            
             .header, .top-bar, #teacherControls, #studentControls { display: none !important; }
             
-            /* 解除樂譜區的防斷頁，改為針對個別音符防斷頁，完美支援多頁列印 */
+            /* 解除 iOS Safari Flexbox 列印 Bug：改用 block + inline-flex */
             .score-area { 
-                border: none !important; box-shadow: none !important; width: 100%; max-width: 100%;
-                margin: 0; padding: 0; background: transparent; display: flex; flex-wrap: wrap;
+                border: none !important; 
+                box-shadow: none !important; 
+                width: 100% !important; 
+                max-width: 100% !important;
+                margin: 0 !important; 
+                padding: 0 !important; 
+                background: transparent !important; 
+                display: block !important; /* 不再使用 flex，防止斷頁失效 */
             }
-            .item-container { page-break-inside: avoid; }
+            
+            /* 確保音符絕對不會被切開 */
+            .item-container { 
+                display: inline-flex !important; /* 配合上層的 block 進行排列 */
+                vertical-align: top;
+                page-break-inside: avoid !important; 
+                break-inside: avoid !important;
+                -webkit-column-break-inside: avoid !important;
+            }
+            
+            /* 處理列印時的換行符號 */
+            .line-break {
+                display: block !important;
+                width: 100% !important;
+                height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+            }
+            .line-break.edit-mode::after { display: none !important; }
             
             .print-only-footer { 
                 display: block; text-align: center; margin-top: 40px; 
                 font-size: 14px; color: #7f8c8d; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px;
+                page-break-inside: avoid !important;
             }
-            .line-break.edit-mode { border: none !important; height: 0 !important; margin: 0 !important; }
-            .line-break.edit-mode::after { display: none !important; }
+            
             .selected-item .score-note, .selected-item .bar-line { box-shadow: none !important; transform: scale(1) !important; background-color: inherit; }
         }
     </style>
@@ -422,7 +458,6 @@
         }
 
         function handleScoreClick(e) {
-            // 優化防呆機制：如果點擊的不是項目容器，就取消選取
             if (!e.target.closest('.item-container')) {
                 selectedIndex = null;
                 renderScore();
