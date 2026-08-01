@@ -51,7 +51,7 @@
             min-height: 250px; background: white; border: 3px dashed #cbd5e1; 
             border-radius: 20px; margin: 0 auto 20px auto; width: 95%; max-width: 1000px;
             padding: 30px 25px; display: flex; flex-wrap: wrap; 
-            align-items: center; justify-content: flex-start;
+            align-items: center; justify-content: flex-start; align-content: flex-start;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); gap: 0; 
         }
 
@@ -146,15 +146,18 @@
 
         /* PDF 輸出優化設定 */
         @media print {
-            /* 隱藏瀏覽器預設的網址及時間頁首/頁尾 */
             @page { margin: 0; }
             body { background: white; padding: 15mm; margin: 0; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .header, .top-bar, #teacherControls, #studentControls { display: none !important; }
+            
+            /* 解除樂譜區的防斷頁，改為針對個別音符防斷頁，完美支援多頁列印 */
             .score-area { 
                 border: none !important; box-shadow: none !important; width: 100%; max-width: 100%;
-                margin: 0; padding: 0; page-break-inside: avoid; background: transparent;
+                margin: 0; padding: 0; background: transparent; display: flex; flex-wrap: wrap;
             }
+            .item-container { page-break-inside: avoid; }
+            
             .print-only-footer { 
                 display: block; text-align: center; margin-top: 40px; 
                 font-size: 14px; color: #7f8c8d; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px;
@@ -249,12 +252,11 @@
                     <button class="btn-action" style="background:#34495e;" onclick="addScoreItem({type: 'barline'})">➕ 小節線 Barline</button>
                     <button class="btn-action" style="background:#2980b9;" onclick="addScoreItem({type: 'linebreak'})">↩️ 換行 Break</button>
                     
-                    <!-- 復原 / 刪除按鈕 (動態切換) -->
                     <button id="undoBtn" class="btn-action" onclick="undoOrDelete()" style="background:#e67e22;">↩️ 復原 Undo</button>
                     <button class="btn-action" onclick="clearScore()" style="background:#e74c3c;">🗑️ 清空 Clear</button>
                 </div>
             </div>
-            <p style="margin: 0; font-size: 13px; color: #7f8c8d;">💡 提示：點擊樂譜上的音符可將其「選取」，然後直接按下下方琴鍵即可替換該音符。<br>Hint: Click a note to select it, then press a key below to replace it.</p>
+            <p style="margin: 0; font-size: 13px; color: #7f8c8d;">💡 提示：點擊樂譜上的音符可將其「選取」，然後直接按下上方琴鍵即可替換該音符。<br>Hint: Click a note to select it, then press a key above to replace it.</p>
         </div>
         
         <div class="keyboard" id="keyboardArea">
@@ -420,7 +422,8 @@
         }
 
         function handleScoreClick(e) {
-            if (e.target.id === 'scoreArea') {
+            // 優化防呆機制：如果點擊的不是項目容器，就取消選取
+            if (!e.target.closest('.item-container')) {
                 selectedIndex = null;
                 renderScore();
             }
@@ -453,11 +456,13 @@
             }
 
             if (scoreData.length === 0) {
-                const emptyMsg = document.createElement('span');
+                const emptyMsg = document.createElement('div');
                 emptyMsg.style.color = '#94a3b8';
                 emptyMsg.style.fontSize = '18px';
-                emptyMsg.style.margin = '20px';
-                emptyMsg.innerHTML = '樂譜目前是空的，請點擊下方琴鍵輸入音符...<br><span style="font-size:14px;">The score is empty. Please click the keys below to add notes...</span>';
+                emptyMsg.style.margin = '20px auto';
+                emptyMsg.style.width = '100%';
+                emptyMsg.style.textAlign = 'center';
+                emptyMsg.innerHTML = '樂譜目前是空的，請點擊上方琴鍵輸入音符...<br><span style="font-size:14px;">The score is empty. Please click the keys above to add notes...</span>';
                 scoreArea.appendChild(emptyMsg);
                 return;
             }
