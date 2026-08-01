@@ -145,61 +145,51 @@
         .print-only-footer { display: none; }
 
         /* =========================================
-           iOS 列印終極修正版 (PDF Export Fixes)
+           iOS 完美 10 音版列印優化 (PDF Export)
            ========================================= */
         @media print {
-            /* 強制隱藏系統預設的頁首/頁尾 (網址及日期) */
-            @page { 
-                margin: 0 !important; 
-            }
+            @page { margin: 5mm !important; }
             body { 
-                background: white; 
-                padding: 15mm !important; 
-                margin: 0 !important; 
-                -webkit-print-color-adjust: exact !important; 
-                print-color-adjust: exact !important;
+                background: white; padding: 0 !important; margin: 0 !important; 
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
             }
-            
             .header, .top-bar, #teacherControls, #studentControls { display: none !important; }
-            
-            /* 解除 iOS Safari Flexbox 列印 Bug：改用 block + inline-flex */
             .score-area { 
-                border: none !important; 
-                box-shadow: none !important; 
-                width: 100% !important; 
-                max-width: 100% !important;
-                margin: 0 !important; 
-                padding: 0 !important; 
-                background: transparent !important; 
-                display: block !important; /* 不再使用 flex，防止斷頁失效 */
+                border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important;
+                margin: 0 !important; padding: 0 !important; background: transparent !important; display: block !important; 
             }
-            
-            /* 確保音符絕對不會被切開 */
             .item-container { 
-                display: inline-flex !important; /* 配合上層的 block 進行排列 */
-                vertical-align: top;
-                page-break-inside: avoid !important; 
-                break-inside: avoid !important;
-                -webkit-column-break-inside: avoid !important;
+                display: inline-flex !important; vertical-align: top;
+                page-break-inside: avoid !important; break-inside: avoid !important; -webkit-column-break-inside: avoid !important;
+                margin-right: 10px !important; margin-bottom: 15px !important; 
             }
+            .item-container.half-beat { margin-right: 2px !important; }
             
-            /* 處理列印時的換行符號 */
-            .line-break {
-                display: block !important;
-                width: 100% !important;
-                height: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                border: none !important;
-            }
+            .beat-1 { width: 55px !important; height: 55px !important; } 
+            .beat-05 { width: 42px !important; height: 42px !important; }
+            .beat-2 { width: 110px !important; height: 55px !important; }
+            .beat-4 { width: 220px !important; height: 55px !important; }
+            .rest-note { font-size: 18px !important; }
+            
+            .note-solfege { font-size: 16px !important; }
+            .note-pitch { font-size: 10px !important; }
+            
+            .time-sig { font-size: 32px !important; height: 55px !important; margin-right: 2px !important;}
+            .bar-line { height: 55px !important; margin: 0 8px !important; }
+            
+            .dot { font-size: 24px !important; }
+            .dot-high { top: -14px !important; }
+            .dot-low { bottom: -14px !important; }
+            .top-text, .bottom-text { font-size: 12px !important; height: 18px !important; }
+            
+            .line-break { display: block !important; width: 100% !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: none !important; }
             .line-break.edit-mode::after { display: none !important; }
             
             .print-only-footer { 
-                display: block; text-align: center; margin-top: 40px; 
-                font-size: 14px; color: #7f8c8d; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px;
+                display: block; text-align: center; margin-top: 30px; 
+                font-size: 12px; color: #7f8c8d; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px;
                 page-break-inside: avoid !important;
             }
-            
             .selected-item .score-note, .selected-item .bar-line { box-shadow: none !important; transform: scale(1) !important; background-color: inherit; }
         }
     </style>
@@ -287,11 +277,21 @@
                 <div class="control-group" style="background: transparent;">
                     <button class="btn-action" style="background:#34495e;" onclick="addScoreItem({type: 'barline'})">➕ 小節線 Barline</button>
                     <button class="btn-action" style="background:#2980b9;" onclick="addScoreItem({type: 'linebreak'})">↩️ 換行 Break</button>
-                    
                     <button id="undoBtn" class="btn-action" onclick="undoOrDelete()" style="background:#e67e22;">↩️ 復原 Undo</button>
                     <button class="btn-action" onclick="clearScore()" style="background:#e74c3c;">🗑️ 清空 Clear</button>
                 </div>
             </div>
+            
+            <!-- 全新加入的檔案存取區塊 -->
+            <div class="control-row" style="margin-top: 5px; border-top: 1px dashed #ccc; padding-top: 15px; width: 100%;">
+                <div class="control-group" style="background: transparent;">
+                    <button class="btn-action" onclick="saveScore()" style="background:#16a085; font-size: 15px; padding: 8px 16px;">💾 儲存樂譜 Save File</button>
+                    <button class="btn-action" onclick="document.getElementById('fileInput').click()" style="background:#8e44ad; font-size: 15px; padding: 8px 16px;">📂 開啟樂譜 Load File</button>
+                    <!-- 隱藏的檔案輸入框 -->
+                    <input type="file" id="fileInput" accept=".json" style="display:none" onchange="loadScore(event)">
+                </div>
+            </div>
+
             <p style="margin: 0; font-size: 13px; color: #7f8c8d;">💡 提示：點擊樂譜上的音符可將其「選取」，然後直接按下上方琴鍵即可替換該音符。<br>Hint: Click a note to select it, then press a key above to replace it.</p>
         </div>
         
@@ -341,6 +341,73 @@
                 displayTitle.classList.add('hidden');
             }
         }
+
+        // ============================
+        // 全新存取功能 (Save & Load)
+        // ============================
+        function saveScore() {
+            if (scoreData.length === 0) {
+                alert("樂譜目前是空的，沒有內容可以儲存！\nThe score is empty, nothing to save!");
+                return;
+            }
+            
+            const titleText = document.getElementById('titleInput').value || '未命名樂譜_Untitled';
+            
+            // 將所有設定和樂譜資料打包
+            const saveData = {
+                title: document.getElementById('titleInput').value,
+                timeSig: document.getElementById('timeSigSelect').value,
+                display: document.getElementById('displaySelect').value,
+                bpm: document.getElementById('bpmSelect').value,
+                score: scoreData
+            };
+
+            // 產生 JSON 檔案並觸發下載
+            const blob = new Blob([JSON.stringify(saveData)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = titleText + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadScore(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const loadedData = JSON.parse(e.target.result);
+                    
+                    // 還原各種設定
+                    if (loadedData.title !== undefined) {
+                        document.getElementById('titleInput').value = loadedData.title;
+                        updateTitle();
+                    }
+                    if (loadedData.timeSig) document.getElementById('timeSigSelect').value = loadedData.timeSig;
+                    if (loadedData.display) document.getElementById('displaySelect').value = loadedData.display;
+                    if (loadedData.bpm) document.getElementById('bpmSelect').value = loadedData.bpm;
+                    
+                    // 還原音符資料
+                    if (Array.isArray(loadedData.score)) {
+                        scoreData = loadedData.score;
+                    }
+                    
+                    selectedIndex = null;
+                    renderScore();
+                    
+                    // 清空 file input，確保下次可以載入同一個檔案
+                    document.getElementById('fileInput').value = '';
+                    
+                } catch (err) {
+                    alert("檔案讀取失敗，格式可能不正確。\nFailed to load file, invalid format.");
+                }
+            };
+            reader.readAsText(file);
+        }
+        // ============================
 
         function playTone(baseFreq, octaveIndex, beats, isRest) {
             if (isRest || baseFreq === 0) return; 
