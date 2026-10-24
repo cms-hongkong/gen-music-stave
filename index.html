@@ -465,13 +465,6 @@
             await Tone.start();
             let synth = getSynth();
             
-            // 計算 Tone.js 支援的音高字串 (例如 C4, D3)
-            let tonePitch = baseFreq; 
-            if(typeof baseFreq === 'number') {
-                // 為了簡單，我哋使用之前完美對應嘅邏輯
-                // 不過呢度直接用頻率都可以發聲，但Tone.js有時鍾意字串，直接傳頻率亦可
-            }
-            
             let durStr = beats === 4 ? "1n" : (beats === 2 ? "2n" : (beats === 1 ? "4n" : "8n"));
             synth.triggerAttackRelease(baseFreq * Math.pow(2, octaveIndex), durStr);
         }
@@ -650,7 +643,7 @@
                             new StaveConnector(stave, stave).setType(StaveConnector.type.SINGLE_RIGHT).setContext(context).draw();
                         }
 
-                        // 處理 VexFlow 音符轉換
+                        // 處理 VexFlow 音符轉換 (生成標準有符桿符尾的五線譜音符)
                         function processNotes(dataArr, clefName, trackHand) {
                             let notes = [];
                             
@@ -664,7 +657,7 @@
                             dataArr.forEach(d => {
                                 let vexDur = d.beats === 4 ? "w" : (d.beats === 2 ? "h" : (d.beats === 1 ? "q" : "8"));
                                 
-                                // 定義音符鍵值
+                                // 定義標準音符鍵值
                                 let keys = [];
                                 if (d.isRest || d.isPlaceholder) {
                                     keys = [getRestKey(clefName, vexDur)];
@@ -674,6 +667,7 @@
                                     keys = [d.pitch.toLowerCase() + '/' + (baseOctave + d.octave)];
                                 }
                                 
+                                // 生成標準 VexFlow 五線譜音符 (自動生成標準橢圓符頭、符桿)
                                 let note = new StaveNote({ 
                                     keys: keys, 
                                     duration: vexDur + ((d.isRest || d.isPlaceholder) ? "r" : ""), 
@@ -685,8 +679,10 @@
                                 let isTargetCursor = (currentStep === 2 && currentHand === trackHand && globalCounter === cursorIndex);
                                 
                                 if (d.isPlaceholder) {
+                                    // 佔位符使用淺灰色休止符表示，不會畫成圈圈
                                     note.setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
                                 } else if (!d.isRest) {
+                                    // 填入彩虹顏色，但保留標準音符形狀
                                     note.setStyle({ fillStyle: d.color, strokeStyle: d.color });
                                 }
 
