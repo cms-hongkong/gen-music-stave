@@ -3,21 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡雅音樂教室 Clare Music Studio - 專業鋼琴大譜表</title>
-    <!-- 引入 VexFlow 同 Tone.js -->
+    <title>卡雅音樂教室 Clare Music Studio - 專業鋼琴大譜表 & 彩虹手鈴製譜工具</title>
+    
+    <!-- 載入專業樂譜引擎與音色庫 -->
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    
+
     <style>
         :root {
-            --c-red: #E74C3C; --d-orange: #E67E22; --e-yellow: #F1C40F;
-            --f-green: #2ECC71; --g-cyan: #1ABC9C; --a-blue: #2980B9;
+            --c-red: #E74C3C;
+            --d-orange: #E67E22;
+            --e-yellow: #F1C40F;
+            --f-green: #2ECC71;
+            --g-cyan: #1ABC9C;
+            --a-blue: #2980B9;
             --b-purple: #8E44AD;
         }
 
         * { box-sizing: border-box; }
         body { 
-            font-family: 'Segoe UI', "PingFang HK", sans-serif; 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, "PingFang HK", "Microsoft JhengHei", sans-serif; 
             text-align: center; background-color: #f1f5f9; padding: 12px; margin: 0; color: #1e293b;
         }
 
@@ -25,62 +30,88 @@
         .studio-tag { color: #8e44ad; font-size: 13px; font-weight: bold; letter-spacing: 2px; }
         h1 { margin: 2px 0 0 0; font-size: 22px; color: #0f172a; }
 
-        .top-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+        /* 頂部操作列 */
+        .top-bar {
+            display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;
+        }
         .btn { 
             padding: 7px 15px; font-size: 13px; border-radius: 20px; border: none; 
             cursor: pointer; color: white; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: 0.15s; display: inline-flex; align-items: center; gap: 5px;
         }
+        .btn:active { transform: scale(0.96); }
         .btn-teacher { background: #1e293b; }
         .btn-student { background: #e11d48; }
         .btn-export { background: #059669; }
         .btn-play { background: #7c3aed; }
 
+        /* 核心兩步切換 */
         .workflow-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
         .step-tab {
             padding: 8px 20px; font-size: 14px; font-weight: bold; border-radius: 10px;
             border: 2px solid #cbd5e1; background: white; color: #64748b; cursor: pointer;
+            transition: 0.2s; display: flex; align-items: center; gap: 6px;
         }
-        .step-tab.active { background: #2563eb; color: white; border-color: #2563eb; }
+        .step-tab.active {
+            background: #2563eb; color: white; border-color: #2563eb;
+            box-shadow: 0 4px 10px rgba(37,99,235,0.25);
+        }
 
+        /* 手鈴配色指引 */
         .bell-guide-container {
             max-width: 980px; margin: 0 auto 10px auto; background: white; border-radius: 10px;
-            padding: 5px 12px; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+            padding: 5px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); display: flex; 
+            align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
         }
+        .bell-guide-title { font-size: 11px; font-weight: bold; color: #64748b; }
         .bell-guide-pill {
             display: inline-flex; align-items: center; padding: 2px 6px;
             border-radius: 10px; font-size: 11px; font-weight: bold; color: white;
         }
 
+        /* 控制台 */
         .panel-box {
             background: white; padding: 12px 15px; border-radius: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin: 0 auto 12px auto; max-width: 980px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin: 0 auto 12px auto;
+            max-width: 980px; display: flex; flex-direction: column; gap: 8px; align-items: center;
         }
-        .control-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; align-items: center; margin-bottom: 8px;}
+        .control-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; align-items: center; width: 100%; }
         .control-group { 
             display: flex; align-items: center; gap: 5px; background: #f8fafc; 
             padding: 4px 8px; border-radius: 8px; font-size: 13px; border: 1px solid #e2e8f0;
         }
-        select, input[type="text"], textarea { padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; }
+        .control-group label { font-weight: bold; color: #334155; }
+        select, input[type="text"], textarea { 
+            padding: 4px 8px; font-size: 13px; border-radius: 6px; border: 1px solid #cbd5e1; background: white;
+        }
 
         .pill-group { display: flex; gap: 3px; }
         .pill-btn {
-            border: 1px solid #cbd5e1; background: white; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;
+            border: 1px solid #cbd5e1; background: white; color: #334155; padding: 4px 8px;
+            border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s;
         }
+        .pill-btn:hover { background: #f1f5f9; }
         .pill-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
 
-        .hand-toggle-btn { padding: 4px 10px; border-radius: 14px; font-weight: bold; cursor: pointer; font-size: 12px; border: 2px solid transparent;}
+        .hand-toggle-btn {
+            padding: 4px 10px; border-radius: 14px; font-weight: bold; cursor: pointer; border: 2px solid transparent; font-size: 12px;
+        }
         .hand-active-rh { background: #fee2e2; color: #b91c1c; border-color: #ef4444; }
         .hand-active-lh { background: #e0e7ff; color: #3730a3; border-color: #6366f1; }
 
-        .keyboard { display: flex; justify-content: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        /* 彩虹琴鍵盤 */
+        .keyboard { display: flex; justify-content: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
         .note-btn { 
             width: 52px; height: 52px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.7); 
-            cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            cursor: pointer; box-shadow: 0 3px 5px rgba(0,0,0,0.1); 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            line-height: 1.1; transition: transform 0.1s;
         }
+        .note-btn:active { transform: scale(0.92); }
         .note-btn .solfege { font-size: 13px; font-weight: 800; }
-        .note-btn .pitch { font-size: 9px; font-weight: 700; }
-        .rest-btn { border: 2px dashed #94a3b8; background: #f8fafc; color: #64748b; }
-        .back-btn { border: 2px solid #ef4444; background: #fef2f2; color: #ef4444; width: 66px; border-radius: 26px; }
+        .note-btn .pitch { font-size: 9px; opacity: 0.9; font-weight: 700; }
+        .note-btn.rest-btn { border: 2px dashed #94a3b8; background: #f8fafc; color: #64748b; }
+        .note-btn.back-btn { border: 2px solid #ef4444; background: #fef2f2; color: #ef4444; width: 66px; border-radius: 26px; }
 
         .c-red { background-color: var(--c-red); color: white; }
         .d-orange { background-color: var(--d-orange); color: white; }
@@ -90,17 +121,28 @@
         .a-blue { background-color: var(--a-blue); color: white; }
         .b-purple { background-color: var(--b-purple); color: white; }
 
-        /* VexFlow 樂譜區 */
-        #score-wrapper { margin: 20px auto; overflow-x: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); max-width: 1000px; }
-        .score-page { margin-bottom: 30px; display: flex; flex-direction: column; align-items: center; }
-        .print-title { font-size: 28px; font-weight: 800; text-align: center; margin-bottom: 20px; }
+        /* 樂譜畫布容器 */
+        .score-area { 
+            background: white; border: 2px dashed #cbd5e1; 
+            border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 980px;
+            padding: 30px 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.04);
+            overflow-x: auto;
+        }
+        
         .hidden { display: none !important; }
 
+        /* 標題樣式 */
+        .sheet-title { width: 100%; font-weight: 800; color: #0f172a; margin-bottom: 20px; text-align: center; }
+        .title-size-S { font-size: 18px; }
+        .title-size-M { font-size: 24px; }
+        .title-size-L { font-size: 30px; }
+        .title-size-XL { font-size: 38px; }
+
         @media print {
-            @page { margin: 10mm; }
-            body { background: white; }
-            .header, .top-bar, .workflow-tabs, .panel-box, .bell-guide-container, .keyboard { display: none !important; }
-            #score-wrapper { box-shadow: none; max-width: 100%; overflow: hidden; margin: 0; padding: 0; }
+            @page { margin: 8mm; size: portrait; }
+            body { background: white; padding: 0; }
+            .header, .top-bar, .workflow-tabs, .panel-box, #keyboardArea, #studentControls, .bell-guide-container { display: none !important; }
+            .score-area { border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
         }
     </style>
 </head>
@@ -108,41 +150,47 @@
 
     <div class="header">
         <div class="studio-tag">卡雅音樂教室 Clare Music Studio</div>
-        <h1>🎹 鋼琴大譜表 & 彩虹手鈴製譜工作室</h1>
+        <h1>🎹 鋼琴大譜表 & 彩虹手鈴製譜工作室 (Grand Staff Studio)</h1>
     </div>
 
+    <!-- 頂部通用導航列 -->
     <div class="top-bar">
-        <button id="modeBtn" class="btn btn-teacher" onclick="toggleMode()">🧑‍🏫 老師端</button>
-        <button class="btn btn-play" onclick="playAll()">▶️ 播放 Play</button>
-        <button class="btn btn-export" onclick="window.print()">📄 匯出 PDF</button>
+        <button id="modeBtn" class="btn btn-teacher" onclick="toggleMode()">🧑‍🏫 老師端 Teacher</button>
+        <button class="btn btn-play" onclick="playAll()">▶️ 雙手同步播放 Play All</button>
+        <button class="btn btn-export" onclick="window.print()">📄 匯出 Export PDF</button>
 
-        <div class="control-group">
+        <div class="control-group" style="background: white;">
             <label>譜表模式:</label>
-            <select id="staffModeSelect" onchange="renderVexScore()">
-                <option value="grand" selected>大譜表</option>
-                <option value="treble">單行高音</option>
-                <option value="bass">單行低音</option>
+            <select id="staffModeSelect" onchange="renderScore()">
+                <option value="grand" selected>鋼琴大譜表 (Grand Staff 𝄞+𝄢)</option>
+                <option value="treble">單行高音譜號 (Treble 𝄞)</option>
+                <option value="bass">單行低音譜號 (Bass 𝄢)</option>
             </select>
         </div>
-        <div class="control-group">
+
+        <div class="control-group" style="background: white;">
             <label>拍號:</label>
             <select id="timeSigSelect" onchange="onLyricsInput()">
                 <option value="4/4" selected>4/4 拍</option>
                 <option value="3/4">3/4 拍</option>
+                <option value="2/4">2/4 拍</option>
             </select>
         </div>
-        <div class="control-group">
-            <label>行數:</label>
-            <select id="lines-per-page" onchange="renderVexScore()">
+        
+        <div class="control-group" style="background: white;">
+            <label>行數/頁:</label>
+            <select id="linesPerPageSelect" onchange="renderScore()">
                 <option value="3">3 行</option>
                 <option value="4">4 行</option>
                 <option value="5" selected>5 行</option>
+                <option value="6">6 行</option>
             </select>
         </div>
     </div>
 
+    <!-- 手鈴指引條 -->
     <div class="bell-guide-container">
-        <span class="bell-guide-title">🔔 手鈴配色:</span>
+        <span class="bell-guide-title">🔔 彩虹手鈴配色指引 Bell Guide:</span>
         <span class="bell-guide-pill c-red">1 Do (C)</span>
         <span class="bell-guide-pill d-orange">2 Re (D)</span>
         <span class="bell-guide-pill e-yellow">3 Mi (E)</span>
@@ -150,35 +198,65 @@
         <span class="bell-guide-pill g-cyan">5 Sol (G)</span>
         <span class="bell-guide-pill a-blue">6 La (A)</span>
         <span class="bell-guide-pill b-purple">7 Ti (B)</span>
+        <span class="bell-guide-pill c-red">1̇ High C 🔴</span>
     </div>
 
+    <!-- 核心兩步切換 -->
     <div class="workflow-tabs">
-        <button class="step-tab active" id="tabStep1" onclick="switchStep(1)">① 輸入歌詞</button>
-        <button class="step-tab" id="tabStep2" onclick="switchStep(2)">② 輸入音階</button>
+        <button class="step-tab active" id="tabStep1" onclick="switchStep(1)">① 輸入歌詞 Input Lyrics</button>
+        <button class="step-tab" id="tabStep2" onclick="switchStep(2)">② 輸入音階 Input Notes</button>
     </div>
 
-    <!-- Step 1 歌詞 -->
+    <!-- 步驟一控制台 -->
     <div id="step1Panel" class="panel-box">
         <div class="control-row">
-            <input type="text" id="titleInput" placeholder="樂譜標題..." style="width: 250px;" oninput="renderVexScore()">
-            <select id="bpmSelect">
-                <option value="60">慢速</option>
-                <option value="90" selected>中速</option>
-            </select>
+            <div class="control-group">
+                <label>標題 Title:</label>
+                <input type="text" id="titleInput" placeholder="例: 瑪利有隻小綿羊" style="width: 140px;" oninput="updateTitle()">
+            </div>
+            <div class="control-group">
+                <label>尺寸:</label>
+                <select id="titleSizeSelect" onchange="updateTitle()">
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L" selected>L</option>
+                    <option value="XL">XL</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>速度 Tempo:</label>
+                <select id="bpmSelect">
+                    <option value="60">60 (慢)</option>
+                    <option value="90" selected>90 (中)</option>
+                    <option value="120">120 (快)</option>
+                </select>
+            </div>
         </div>
-        <textarea id="fullLyricsInput" style="width:100%; height:60px;" placeholder="輸入歌詞 (每個字代表1拍，空格代表休止符)..." oninput="onLyricsInput()"></textarea>
+        <div class="control-row" style="width: 100%; max-width: 680px;">
+            <div style="display:flex; flex-direction:column; width: 100%; text-align:left;">
+                <label style="font-size:12px; font-weight:bold; color:#475569; margin-bottom:4px;">
+                    📝 輸入完整歌詞（自動生成嚴格對齊的 1 拍佔位符）：
+                </label>
+                <textarea id="fullLyricsInput" style="height:65px; width:100%; font-size:14px;" placeholder="例: 瑪莉有隻小綿羊 小綿羊 小綿羊" oninput="onLyricsInput()"></textarea>
+            </div>
+        </div>
+        <div style="font-size: 12px; color: #64748b;">
+            💡 打完歌詞後，點擊「<b>② 輸入音階 Input Notes</b>」進入填音階模式。
+        </div>
     </div>
 
-    <!-- Step 2 鍵盤 -->
+    <!-- 步驟二控制台 -->
     <div id="step2Panel" class="panel-box hidden">
         <div class="control-row">
-            <div class="control-group">
-                <button id="btnRH" class="hand-toggle-btn hand-active-rh" onclick="setHand('RH')">𝄞 右手 (RH)</button>
-                <button id="btnLH" class="hand-toggle-btn" onclick="setHand('LH')">𝄢 左手 (LH)</button>
+            <div class="control-group" style="background: #eef2ff;">
+                <label>聲部:</label>
+                <button type="button" id="btnRH" class="hand-toggle-btn hand-active-rh" onclick="setHand('RH')">𝄞 右手 (RH)</button>
+                <button type="button" id="btnLH" class="hand-toggle-btn" onclick="setHand('LH')">𝄢 左手 (LH)</button>
             </div>
             <div class="control-group">
                 <label>拍長:</label>
                 <div class="pill-group" id="beatPills">
+                    <button class="pill-btn" data-val="0.5" onclick="setBeat(0.5)">0.5 拍</button>
                     <button class="pill-btn active" data-val="1" onclick="setBeat(1)">1 拍</button>
                     <button class="pill-btn" data-val="2" onclick="setBeat(2)">2 拍</button>
                     <button class="pill-btn" data-val="4" onclick="setBeat(4)">4 拍</button>
@@ -195,260 +273,547 @@
                     <button class="pill-btn" data-val="5" onclick="setFingering('5')">5</button>
                 </div>
             </div>
+            <div class="control-group">
+                <label>音域:</label>
+                <div class="pill-group" id="octavePills">
+                    <button class="pill-btn" data-val="-1" onclick="setOctave(-1)">低音 (·底)</button>
+                    <button class="pill-btn active" data-val="0" onclick="setOctave(0)">中音</button>
+                    <button class="pill-btn" data-val="1" onclick="setOctave(1)">高音 (·頂)</button>
+                </div>
+            </div>
         </div>
-        
-        <div class="keyboard">
-            <button class="note-btn c-red" onclick="processInput(261.63, 'C', 0)"><span class="solfege">Do</span><span class="pitch">C</span></button>
-            <button class="note-btn d-orange" onclick="processInput(293.66, 'D', 0)"><span class="solfege">Re</span><span class="pitch">D</span></button>
-            <button class="note-btn e-yellow" onclick="processInput(329.63, 'E', 0)"><span class="solfege">Mi</span><span class="pitch">E</span></button>
-            <button class="note-btn f-green" onclick="processInput(349.23, 'F', 0)"><span class="solfege">Fa</span><span class="pitch">F</span></button>
-            <button class="note-btn g-cyan" onclick="processInput(392.00, 'G', 0)"><span class="solfege">Sol</span><span class="pitch">G</span></button>
-            <button class="note-btn a-blue" onclick="processInput(440.00, 'A', 0)"><span class="solfege">La</span><span class="pitch">A</span></button>
-            <button class="note-btn b-purple" onclick="processInput(493.88, 'B', 0)"><span class="solfege">Ti</span><span class="pitch">B</span></button>
-            <button class="note-btn c-red" onclick="processInput(523.25, 'C', 1)"><span class="solfege">Do</span><span class="pitch">高C</span></button>
-            <button class="note-btn rest-btn" onclick="processInput(0, 'Rest', 0)"><span class="solfege">休</span></button>
-            <button class="note-btn back-btn" onclick="backspaceDelete()">⌫</button>
+
+        <div style="font-size: 13px; font-weight:bold; color: #2563eb; margin-top:2px;">
+            ⌨️ 按鍵盤 <b>1~7</b> 填入音階，打錯按 <b>Backspace</b> 或點選右側清除鍵：
+        </div>
+
+        <!-- 彩虹琴鍵盤 -->
+        <div class="keyboard" id="keyboardArea">
+            <button class="note-btn c-red" onclick="processInput(261.63, 'Do', 'C', '1', '#E74C3C', false)"><span class="solfege">Do</span><span class="pitch">1 / C</span></button>
+            <button class="note-btn d-orange" onclick="processInput(293.66, 'Re', 'D', '2', '#E67E22', false)"><span class="solfege">Re</span><span class="pitch">2 / D</span></button>
+            <button class="note-btn e-yellow" onclick="processInput(329.63, 'Mi', 'E', '3', '#F1C40F', false)"><span class="solfege">Mi</span><span class="pitch">3 / E</span></button>
+            <button class="note-btn f-green" onclick="processInput(349.23, 'Fa', 'F', '4', '#2ECC71', false)"><span class="solfege">Fa</span><span class="pitch">4 / F</span></button>
+            <button class="note-btn g-cyan" onclick="processInput(392.00, 'Sol', 'G', '5', '#1ABC9C', false)"><span class="solfege">Sol</span><span class="pitch">5 / G</span></button>
+            <button class="note-btn a-blue" onclick="processInput(440.00, 'La', 'A', '6', '#2980B9', false)"><span class="solfege">La</span><span class="pitch">6 / A</span></button>
+            <button class="note-btn b-purple" onclick="processInput(493.88, 'Ti', 'B', '7', '#8E44AD', false)"><span class="solfege">Ti</span><span class="pitch">7 / B</span></button>
+            <button class="note-btn rest-btn" onclick="processInput(0, '休', 'Rest', '0', '#94a3b8', true)"><span class="solfege">X</span><span class="pitch">休止</span></button>
+            <button class="note-btn back-btn" onclick="backspaceDelete()"><span style="font-size:16px;">⌫</span><span style="font-size:10px; font-weight:bold;">清除</span></button>
         </div>
     </div>
 
-    <!-- VexFlow 顯示區 -->
-    <div id="score-wrapper"></div>
+    <!-- 學生端互動提示 -->
+    <div id="studentControls" class="hidden">
+        <p style="font-size: 18px; color: #e11d48; font-weight: bold; margin: 10px 0;">
+            🔔 演奏模式開啟！
+        </p>
+    </div>
+
+    <!-- 樂譜主畫布 (VexFlow 引擎生成區) -->
+    <div class="score-area" id="scoreArea">
+        <div id="displayTitle" class="sheet-title title-size-L hidden"></div>
+        <div id="vexflow-canvas"></div>
+    </div>
 
     <script>
-        const { Renderer, Stave, StaveNote, Formatter, Annotation, StaveConnector, Voice, Beam } = Vex.Flow;
-        const colorMap = { "c": "#FF0000", "d": "#FFA500", "e": "#E6E600", "f": "#00FF00", "g": "#ADD8E6", "a": "#0000FF", "b": "#800080" };
+        // 初始化 VexFlow 與 Tone.js
+        const { Renderer, Stave, StaveNote, Formatter, Dot, Annotation, StaveConnector, Voice, Beam, GhostNote } = Vex.Flow;
+        
+        let globalSynth = null; 
+        function getSynth() {
+            if (!globalSynth) {
+                globalSynth = new Tone.PolySynth(Tone.Synth, { volume: 8 }).toDestination();
+            }
+            return globalSynth;
+        }
 
-        let measures = [];
-        let currentHand = 'RH'; 
+        let isTeacherMode = true;
         let currentStep = 1;
-        let cursorIndex = 0;
+        let currentHand = 'RH'; 
+        let isPlayingAll = false;
+        
+        let cursorIndex = 0; // 追蹤輸入位置
         let currentBeat = 1;
         let currentFingering = '';
+        let currentOctave = 0; // 0 = 中音(C4), 1 = 高音, -1 = 低音
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
+        // 系統資料結構：基於歌詞生成小節，每個小節有左右手陣列
+        let measures = [ { id: 1, RH: [], LH: [] } ];
+
+        window.addEventListener('keydown', (e) => {
+            if (!isTeacherMode || currentStep !== 2) return;
+            if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault();
+                backspaceDelete();
+                return;
+            }
+
+            const map = {
+                '1': [261.63, 'Do', 'C', '1', '#E74C3C', false],
+                '2': [293.66, 'Re', 'D', '2', '#E67E22', false],
+                '3': [329.63, 'Mi', 'E', '3', '#F1C40F', false],
+                '4': [349.23, 'Fa', 'F', '4', '#2ECC71', false],
+                '5': [392.00, 'Sol', 'G', '5', '#1ABC9C', false],
+                '6': [440.00, 'La', 'A', '6', '#2980B9', false],
+                '7': [493.88, 'Ti', 'B', '7', '#8E44AD', false],
+                '0': [0, '休', 'Rest', '0', '#94a3b8', true],
+                ' ': [0, '休', 'Rest', '0', '#94a3b8', true]
+            };
+            if (map[e.key]) {
+                e.preventDefault();
+                processInput(...map[e.key]);
+            }
+        });
+
         function switchStep(step) {
             currentStep = step;
             document.getElementById('tabStep1').classList.toggle('active', step === 1);
             document.getElementById('tabStep2').classList.toggle('active', step === 2);
             document.getElementById('step1Panel').classList.toggle('hidden', step !== 1);
             document.getElementById('step2Panel').classList.toggle('hidden', step !== 2);
-            if(step === 2) cursorIndex = 0;
-            renderVexScore();
+
+            if (step === 2) cursorIndex = 0;
+            renderScore();
         }
 
-        function setBeat(v) {
-            currentBeat = parseFloat(v);
-            document.querySelectorAll('#beatPills .pill-btn').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.val) === currentBeat));
+        function setBeat(val) {
+            currentBeat = parseFloat(val);
+            document.querySelectorAll('#beatPills .pill-btn').forEach(btn => {
+                btn.classList.toggle('active', parseFloat(btn.dataset.val) === currentBeat);
+            });
         }
-        function setFingering(v) {
-            currentFingering = v;
-            document.querySelectorAll('#fingeringPills .pill-btn').forEach(b => b.classList.toggle('active', b.dataset.val === currentFingering));
+
+        function setFingering(val) {
+            currentFingering = val;
+            document.querySelectorAll('#fingeringPills .pill-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.val === currentFingering);
+            });
         }
-        function setHand(h) {
-            currentHand = h;
-            document.getElementById('btnRH').className = 'hand-toggle-btn ' + (h === 'RH' ? 'hand-active-rh' : '');
-            document.getElementById('btnLH').className = 'hand-toggle-btn ' + (h === 'LH' ? 'hand-active-lh' : '');
+
+        function setOctave(val) {
+            currentOctave = parseInt(val);
+            document.querySelectorAll('#octavePills .pill-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.val) === currentOctave);
+            });
+        }
+
+        function setHand(hand) {
+            currentHand = hand;
+            document.getElementById('btnRH').className = 'hand-toggle-btn ' + (hand === 'RH' ? 'hand-active-rh' : '');
+            document.getElementById('btnLH').className = 'hand-toggle-btn ' + (hand === 'LH' ? 'hand-active-lh' : '');
+            if (hand === 'LH') setOctave(-1); // 左手預設低音
+            else setOctave(0); // 右手預設中音
             cursorIndex = 0;
-            renderVexScore();
+            renderScore();
         }
 
-        // 解析歌詞為小節狀態
+        function updateTitle() {
+            const text = document.getElementById('titleInput').value;
+            const size = document.getElementById('titleSizeSelect').value;
+            const titleEl = document.getElementById('displayTitle');
+            if (text.trim() !== '') {
+                titleEl.innerText = text;
+                titleEl.className = `sheet-title title-size-${size}`;
+                titleEl.classList.remove('hidden');
+            } else {
+                titleEl.classList.add('hidden');
+            }
+        }
+
+        // 根據歌詞自動生成小節與佔位符
         function onLyricsInput() {
             const raw = document.getElementById('fullLyricsInput').value;
-            const timeBeats = parseInt(document.getElementById('timeSigSelect').value.split('/')[0]);
+            const timeSigVal = document.getElementById('timeSigSelect').value;
+            const maxBeats = parseInt(timeSigVal.split('/')[0]);
+
+            const chars = raw.split('');
+            measures = [{ id: 1, RH: [], LH: [] }];
+            let curMeasure = measures[0];
+            let curBeats = 0;
+
+            chars.forEach((ch, idx) => {
+                if (curBeats + 1 > maxBeats) {
+                    measures.push({ id: Date.now() + Math.random(), RH: [], LH: [] });
+                    curMeasure = measures[measures.length - 1];
+                    curBeats = 0;
+                }
+
+                // 右手預設放歌詞
+                curMeasure.RH.push({
+                    baseFreq: 0, octave: 0, beats: 1, solfege: '', pitch: '', num: '',
+                    color: '#cbd5e1', fingering: '', lyric: ch === ' ' ? '' : ch,
+                    isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + idx
+                });
+
+                // 左手預設吉位
+                curMeasure.LH.push({
+                    baseFreq: 0, octave: -1, beats: 1, solfege: '', pitch: '', num: '',
+                    color: '#cbd5e1', fingering: '', lyric: '',
+                    isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + idx + 999
+                });
+
+                curBeats += 1;
+            });
+
+            if (chars.length === 0) measures = [{ id: 1, RH: [], LH: [] }];
+            renderScore();
+        }
+
+        async function playTone(baseFreq, octaveIndex, beats, isRest) {
+            if (isRest || baseFreq === 0) return;
+            await Tone.start();
+            let synth = getSynth();
             
-            measures = [];
-            let chars = raw.split('');
-            let mCount = Math.ceil(chars.length / timeBeats) || 1;
+            // 計算 Tone.js 支援的音高字串 (例如 C4, D3)
+            let tonePitch = baseFreq; 
+            if(typeof baseFreq === 'number') {
+                // 為了簡單，我哋使用之前完美對應嘅邏輯
+                // 不過呢度直接用頻率都可以發聲，但Tone.js有時鍾意字串，直接傳頻率亦可
+            }
             
-            for(let i=0; i<mCount; i++) {
-                let m = { RH: [], LH: [] };
-                for(let b=0; b<timeBeats; b++) {
-                    let c = chars[i*timeBeats + b];
-                    if (c !== undefined) {
-                        m.RH.push({ beats: 1, pitch: '', isRest: c===' ', isPlaceholder: c!==' ', lyric: c===' '?'':c, fingering: '', octave: 0, freq:0 });
-                        m.LH.push({ beats: 1, pitch: '', isRest: true, isPlaceholder: true, lyric: '', fingering: '', octave: -1, freq:0 });
+            let durStr = beats === 4 ? "1n" : (beats === 2 ? "2n" : (beats === 1 ? "4n" : "8n"));
+            synth.triggerAttackRelease(baseFreq * Math.pow(2, octaveIndex), durStr);
+        }
+
+        // 處理虛擬鍵盤或實體鍵盤輸入
+        function processInput(baseFreq, solfege, pitch, num, colorHex, isRest) {
+            playTone(baseFreq, currentOctave, currentBeat, isRest);
+
+            let allSlots = [];
+            measures.forEach((m, mIdx) => {
+                m[currentHand].forEach((n, nIdx) => {
+                    allSlots.push({ mIdx, nIdx, note: n });
+                });
+            });
+
+            if (cursorIndex < allSlots.length) {
+                const target = allSlots[cursorIndex];
+                const curMeasureNotes = measures[target.mIdx][currentHand];
+                const noteRef = curMeasureNotes[target.nIdx];
+
+                noteRef.baseFreq = baseFreq;
+                noteRef.octave = currentOctave;
+                noteRef.beats = currentBeat; 
+                noteRef.solfege = isRest ? '' : solfege;
+                noteRef.pitch = isRest ? '' : pitch;
+                noteRef.num = isRest ? '' : num;
+                noteRef.color = colorHex;
+                noteRef.fingering = currentFingering;
+                noteRef.isRest = isRest;
+                noteRef.isPlaceholder = false;
+
+                // 吞噬佔位符 (例如2拍吞1個，4拍吞3個)
+                const slotsToAbsorb = Math.floor(currentBeat) - 1;
+                if (slotsToAbsorb > 0) {
+                    for (let s = 0; s < slotsToAbsorb; s++) {
+                        if (target.nIdx + 1 < curMeasureNotes.length && curMeasureNotes[target.nIdx + 1].isPlaceholder) {
+                            curMeasureNotes.splice(target.nIdx + 1, 1);
+                        }
                     }
                 }
-                measures.push(m);
-            }
-            renderVexScore();
-        }
 
-        // 聲音引擎
-        function playTone(freq, durBeats) {
-            if(!freq) return;
-            const now = audioCtx.currentTime;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.frequency.setValueAtTime(freq, now);
-            const duration = durBeats * (60 / parseInt(document.getElementById('bpmSelect').value));
-            gain.gain.setValueAtTime(1, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(now); osc.stop(now + duration);
-        }
-
-        // 填入音符
-        function processInput(freq, pitch, octaveShift) {
-            playTone(freq, currentBeat);
-            let flatList = [];
-            measures.forEach((m, mi) => m[currentHand].forEach((n, ni) => flatList.push({mi, ni, note: n})));
-            
-            if(cursorIndex < flatList.length) {
-                let t = flatList[cursorIndex];
-                let n = measures[t.mi][currentHand][t.ni];
-                n.freq = freq;
-                n.pitch = pitch;
-                n.isPlaceholder = false;
-                n.isRest = (pitch === 'Rest');
-                n.beats = currentBeat;
-                n.fingering = currentFingering;
-                n.octave = (currentHand === 'LH' ? -1 : 0) + octaveShift;
-                
-                // 吃掉後續空圈 (例如2拍吃1個)
-                let toAbsorb = currentBeat - 1;
-                let handNotes = measures[t.mi][currentHand];
-                for(let i=0; i<toAbsorb; i++) {
-                    if(t.ni + 1 < handNotes.length) handNotes.splice(t.ni+1, 1);
-                }
                 cursorIndex++;
-                renderVexScore();
+                renderScore();
             }
         }
 
         function backspaceDelete() {
-            if(cursorIndex > 0) cursorIndex--;
-            renderVexScore(); // 簡化處理：退回一格由老師重填
+            let allSlots = [];
+            measures.forEach((m, mIdx) => {
+                m[currentHand].forEach((n, nIdx) => {
+                    allSlots.push({ mIdx, nIdx, note: n });
+                });
+            });
+
+            if (allSlots.length === 0) return;
+
+            let targetIdx = cursorIndex;
+            if (targetIdx >= allSlots.length || allSlots[targetIdx].note.isPlaceholder) {
+                if (cursorIndex > 0) cursorIndex--;
+                targetIdx = cursorIndex;
+            }
+
+            const target = allSlots[targetIdx];
+            const noteRef = measures[target.mIdx][currentHand][target.nIdx];
+
+            noteRef.baseFreq = 0;
+            noteRef.beats = 1;
+            noteRef.solfege = '';
+            noteRef.pitch = '';
+            noteRef.num = '';
+            noteRef.color = '#cbd5e1';
+            noteRef.fingering = '';
+            noteRef.isRest = true;
+            noteRef.isPlaceholder = true;
+
+            renderScore();
         }
 
-        // --- VEXFLOW 專業渲染引擎 (結合隱形網格) ---
-        function getRestKey(clef, dur) { return clef === 'bass' ? (dur === 'w' ? "f/3" : "d/3") : (dur === 'w' ? "d/5" : "b/4"); }
-        function getVexDur(beats) { return beats === 4 ? "w" : beats === 2 ? "h" : "q"; }
+        // 完美還原休止符座標
+        function getRestKey(clef, vexDur) {
+            if (clef === 'bass') {
+                return vexDur === 'w' ? "f/3" : "d/3";
+            } else {
+                return vexDur === 'w' ? "d/5" : "b/4";
+            }
+        }
 
-        function renderVexScore() {
-            const scoreWrapper = document.getElementById('score-wrapper');
-            scoreWrapper.innerHTML = '';
-            if(measures.length === 0) return;
+        // VexFlow 完美渲染引擎
+        function renderScore() {
+            const canvasContainer = document.getElementById("vexflow-canvas");
+            canvasContainer.innerHTML = ""; // 清空舊畫布
 
-            const clef = document.getElementById("staffModeSelect").value;
-            const timeSig = document.getElementById("timeSigSelect").value;
-            const timeBeats = parseInt(timeSig.split('/')[0]);
-            const linesPerPage = parseInt(document.getElementById("lines-per-page").value);
-            
-            // 分行
-            let measureLines = [];
-            for (let i = 0; i < measures.length; i += 2) measureLines.push(measures.slice(i, i + 2));
+            const clefMode = document.getElementById("staffModeSelect").value;
+            const timeSigStr = document.getElementById("timeSigSelect").value;
+            const timeBeats = parseInt(timeSigStr.split('/')[0]); 
+            const maxLinesPerPage = parseInt(document.getElementById('linesPerPageSelect').value) || 5; 
+
+            // 將 measures 轉換為行 (Rows)
+            let lines = [];
+            const MEASURES_PER_LINE = 2; // 固定每行 2 小節 (與之前 300px 完美對齊)
+            for (let i = 0; i < measures.length; i += MEASURES_PER_LINE) {
+                lines.push(measures.slice(i, i + MEASURES_PER_LINE));
+            }
             let pages = [];
-            for (let i = 0; i < measureLines.length; i += linesPerPage) pages.push(measureLines.slice(i, i + linesPerPage));
+            for (let i = 0; i < lines.length; i += maxLinesPerPage) {
+                pages.push(lines.slice(i, i + maxLinesPerPage));
+            }
 
-            const SCALE = 1.6;
-            const lineSpacing = clef === 'grand' ? 290 : 150;
+            const SCALE = 1.6; 
+            const lineSpacing = clefMode === 'grand' ? 290 : 150;
+            const topMargin = 50;
+
+            let globalCounter = 0; // 用於追蹤 cursorIndex
 
             pages.forEach((pageLines, pageIndex) => {
-                let div = document.createElement("div");
-                div.className = "score-page";
-                if (pageIndex === 0) {
-                    let title = document.createElement("div");
-                    title.className = "print-title";
-                    title.innerText = document.getElementById("titleInput").value;
-                    div.appendChild(title);
-                }
-                scoreWrapper.appendChild(div);
+                let maxLineWidth = 0;
+                let lineLayouts = [];
 
-                const renderer = new Renderer(div, Renderer.Backends.SVG);
-                renderer.resize(850 * SCALE, (pageLines.length * lineSpacing + 80) * SCALE);
-                const ctx = renderer.getContext();
-                ctx.setViewBox(0, 0, 850, pageLines.length * lineSpacing + 80);
+                pageLines.forEach(lineGroup => {
+                    let currentLineWidth = 20;
+                    let mWidths = [];
+                    lineGroup.forEach((measureGroup, mIndex) => {
+                        // 🌟 絕對鎖定每小節 300px，第一小節多 60px 用嚟擺譜號
+                        let requiredWidth = 300 + (mIndex === 0 ? 60 : 0);
+                        mWidths.push(requiredWidth);
+                        currentLineWidth += requiredWidth;
+                    });
+                    lineLayouts.push(mWidths);
+                    if (currentLineWidth > maxLineWidth) maxLineWidth = currentLineWidth;
+                });
 
-                pageLines.forEach((mGroup, lineIdx) => {
-                    let startY = lineIdx * lineSpacing + 50;
-                    let mX = 40;
+                const logicalWidth = Math.max(850, maxLineWidth + 80); 
+                const logicalHeight = Math.max(200, pageLines.length * lineSpacing + topMargin + 40);
+
+                let wrapperDiv = document.createElement("div");
+                wrapperDiv.style.marginBottom = "20px";
+                canvasContainer.appendChild(wrapperDiv);
+
+                const renderer = new Renderer(wrapperDiv, Renderer.Backends.SVG);
+                renderer.resize(logicalWidth * SCALE, logicalHeight * SCALE);
+                const context = renderer.getContext();
+                context.setViewBox(0, 0, logicalWidth, logicalHeight);
+
+                pageLines.forEach((lineGroup, lineIndex) => {
+                    let startY = lineIndex * lineSpacing + topMargin;
+                    let lineX = 40; 
+                    let mWidths = lineLayouts[lineIndex];
                     
-                    mGroup.forEach((m, mIdx) => {
-                        let mW = 300 + (mIdx === 0 ? 60 : 0); // 固定完美寬度
-                        let sTop = new Stave(mX, startY, mW);
-                        if (mIdx === 0) { sTop.addClef(clef === 'grand' ? 'treble' : clef); sTop.addTimeSignature(timeSig); }
-                        sTop.setContext(ctx).draw();
-
-                        let sBot;
-                        if (clef === 'grand') {
-                            sBot = new Stave(mX, startY + 150, mW);
-                            if (mIdx === 0) { sBot.addClef("bass"); sBot.addTimeSignature(timeSig); }
-                            sBot.setContext(ctx).draw();
-                            if (mIdx === 0) {
-                                new StaveConnector(sTop, sBot).setType(StaveConnector.type.BRACE).setContext(ctx).draw();
-                                new StaveConnector(sTop, sBot).setType(StaveConnector.type.SINGLE_LEFT).setContext(ctx).draw();
+                    lineGroup.forEach((measureGroup, mIndex) => {
+                        let mW = mWidths[mIndex];
+                        let mX = lineX;
+                        lineX += mW;
+                        
+                        let isFirstInLine = (mIndex === 0);
+                        let isFirstMeasure = (lineIndex === 0 && mIndex === 0);
+                        
+                        let stave = new Stave(mX, startY, mW);
+                        if (isFirstInLine) stave.addClef(clefMode === 'grand' ? 'treble' : clefMode);
+                        if (isFirstMeasure) stave.addTimeSignature(timeSigStr);
+                        stave.setContext(context).draw();
+                        
+                        let staveBass;
+                        if (clefMode === 'grand') {
+                            staveBass = new Stave(mX, startY + 150, mW);
+                            if (isFirstInLine) staveBass.addClef("bass");
+                            if (isFirstMeasure) staveBass.addTimeSignature(timeSigStr);
+                            staveBass.setContext(context).draw();
+                            
+                            if (isFirstInLine) {
+                                new StaveConnector(stave, staveBass).setType(StaveConnector.type.BRACE).setContext(context).draw();
+                                new StaveConnector(stave, staveBass).setType(StaveConnector.type.SINGLE_LEFT).setContext(context).draw();
                             }
-                            new StaveConnector(sTop, sBot).setType(StaveConnector.type.SINGLE_RIGHT).setContext(ctx).draw();
+                            new StaveConnector(stave, staveBass).setType(StaveConnector.type.SINGLE_RIGHT).setContext(context).draw();
                         } else {
-                            if (mIdx === 0) new StaveConnector(sTop, sTop).setType(StaveConnector.type.SINGLE_LEFT).setContext(ctx).draw();
-                            new StaveConnector(sTop, sTop).setType(StaveConnector.type.SINGLE_RIGHT).setContext(ctx).draw();
+                            if (isFirstInLine) new StaveConnector(stave, stave).setType(StaveConnector.type.SINGLE_LEFT).setContext(context).draw();
+                            new StaveConnector(stave, stave).setType(StaveConnector.type.SINGLE_RIGHT).setContext(context).draw();
                         }
 
-                        function buildStaveNotes(noteData, clefName) {
-                            if(!noteData || noteData.length===0) {
-                                let g = new StaveNote({keys:[getRestKey(clefName,'w')], duration:"wr", clef:clefName, auto_stem:false});
-                                g.setStyle({fillStyle:"transparent", strokeStyle:"transparent"});
-                                return [g];
+                        // 處理 VexFlow 音符轉換
+                        function processNotes(dataArr, clefName, trackHand) {
+                            let notes = [];
+                            
+                            if (!dataArr || dataArr.length === 0) {
+                                let ghost = new StaveNote({ keys: [getRestKey(clefName, 'w')], duration: "wr", clef: clefName, auto_stem: false });
+                                ghost.setStyle({ fillStyle: "transparent", strokeStyle: "transparent" });
+                                notes.push(ghost);
+                                return notes;
                             }
-                            return noteData.map((n, i) => {
-                                let vDur = getVexDur(n.beats);
-                                let isRestOrHold = n.isRest || n.isPlaceholder;
-                                let keys = isRestOrHold ? [getRestKey(clefName, vDur)] : [`${n.pitch.replace('高C','C').toLowerCase()}/${clefName==='bass'?3+n.octave:4+n.octave}`];
+                            
+                            dataArr.forEach(d => {
+                                let vexDur = d.beats === 4 ? "w" : (d.beats === 2 ? "h" : (d.beats === 1 ? "q" : "8"));
                                 
-                                let sn = new StaveNote({ keys, duration: vDur + (isRestOrHold ? "r" : ""), clef: clefName });
-                                
-                                if (n.isPlaceholder) {
-                                    sn.setStyle({fillStyle:"transparent", strokeStyle:"transparent"});
-                                    sn.addModifier(new Annotation("◌").setFont("sans-serif",16).setVerticalJustification(Annotation.VerticalJustify.CENTER), 0);
-                                } else if (!n.isRest) {
-                                    let c = colorMap[n.pitch.replace('高C','C').toLowerCase()] || "#000";
-                                    sn.setStyle({fillStyle:c, strokeStyle:c});
-                                    sn.addModifier(new Annotation(n.pitch).setFont("sans-serif",14,"bold").setVerticalJustification(Annotation.VerticalJustify.BOTTOM), 0);
-                                    if(n.fingering) sn.addModifier(new Annotation(n.fingering).setFont("sans-serif",14,"bold").setVerticalJustification(Annotation.VerticalJustify.BOTTOM), 0);
+                                // 定義音符鍵值
+                                let keys = [];
+                                if (d.isRest || d.isPlaceholder) {
+                                    keys = [getRestKey(clefName, vexDur)];
+                                } else {
+                                    // 計算標準八度 (右手預設 C4, 左手預設 C3)
+                                    let baseOctave = clefName === 'treble' ? 4 : 3;
+                                    keys = [d.pitch.toLowerCase() + '/' + (baseOctave + d.octave)];
                                 }
-                                if (n.lyric) sn.addModifier(new Annotation(n.lyric).setFont("sans-serif",16,"bold").setVerticalJustification(Annotation.VerticalJustify.BOTTOM), 0);
-                                return sn;
+                                
+                                let note = new StaveNote({ 
+                                    keys: keys, 
+                                    duration: vexDur + ((d.isRest || d.isPlaceholder) ? "r" : ""), 
+                                    clef: clefName, 
+                                    auto_stem: !(d.isRest || d.isPlaceholder) 
+                                });
+                                
+                                // 顏色與游標設定
+                                let isTargetCursor = (currentStep === 2 && currentHand === trackHand && globalCounter === cursorIndex);
+                                
+                                if (d.isPlaceholder) {
+                                    note.setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
+                                } else if (!d.isRest) {
+                                    note.setStyle({ fillStyle: d.color, strokeStyle: d.color });
+                                }
+
+                                if (isTargetCursor) {
+                                    // 游標指示器
+                                    note.setStyle({ fillStyle: '#2563eb', strokeStyle: '#2563eb' });
+                                    note.addModifier(new Annotation("▼").setFont("sans-serif", 16).setVerticalJustification(Annotation.VerticalJustify.TOP), 0);
+                                }
+
+                                // 歌詞與指法 (皆置底)
+                                if (d.lyric) {
+                                    note.addModifier(new Annotation(d.lyric).setFont("sans-serif", 16, "bold").setVerticalJustification(Annotation.VerticalJustify.BOTTOM), 0);
+                                }
+                                if (d.fingering) {
+                                    note.addModifier(new Annotation(d.fingering).setFont("sans-serif", 14, "bold").setVerticalJustification(Annotation.VerticalJustify.BOTTOM), 0);
+                                }
+                                
+                                notes.push(note);
+
+                                if(trackHand === currentHand) globalCounter++;
                             });
+                            return notes;
                         }
 
+                        let tNotes = [], bNotes = [];
                         let voices = [];
-                        let tNotes = buildStaveNotes(m.RH, 'treble');
-                        let vT = new Voice({num_beats:timeBeats, beat_value:4}).setMode(Voice.Mode.SOFT).addTickables(tNotes).setStave(sTop);
-                        if(clef === 'grand' || clef === 'treble') voices.push(vT);
-                        
-                        let bNotes = buildStaveNotes(m.LH, 'bass');
-                        let vB = new Voice({num_beats:timeBeats, beat_value:4}).setMode(Voice.Mode.SOFT).addTickables(bNotes).setStave(clef==='grand'?sBot:sTop);
-                        if(clef === 'grand' || clef === 'bass') voices.push(vB);
+                        let beamsTreble = [], beamsBass = [];
 
-                        // 隱形網格：鎖死物理距離
+                        if (clefMode === 'grand' || clefMode === 'treble') {
+                            tNotes = processNotes(measureGroup.RH, 'treble', 'RH');
+                            let vTreble = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(tNotes);
+                            vTreble.setStave(stave);
+                            voices.push(vTreble);
+                            beamsTreble = Beam.generateBeams(tNotes.filter(n => !n.isRest()));
+                        }
+                        
+                        if (clefMode === 'grand' || clefMode === 'bass') {
+                            // 暫存游標，因為上下手遍歷順序問題，確保計數器準確
+                            let tempCounter = globalCounter; 
+                            if(currentHand === 'LH') globalCounter = tempCounter - measureGroup.RH.length; 
+                            
+                            bNotes = processNotes(measureGroup.LH, 'bass', 'LH');
+                            
+                            if(currentHand === 'LH') globalCounter = tempCounter; // 復原
+
+                            let vBass = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(bNotes);
+                            vBass.setStave(clefMode === 'grand' ? staveBass : stave);
+                            voices.push(vBass);
+                            beamsBass = Beam.generateBeams(bNotes.filter(n => !n.isRest()));
+                        }
+
+                        // 🌟 神級排版魔法：加入「隱形網格」，強制定立絕對平均嘅物理空間
                         let gridNotes = [];
-                        for(let b=0; b<timeBeats; b++) gridNotes.push(new Vex.Flow.GhostNote({duration:"q"}));
-                        let gridVoice = new Voice({num_beats:timeBeats, beat_value:4}).setMode(Voice.Mode.SOFT).addTickables(gridNotes).setStave(sTop);
-                        voices.push(gridVoice);
-
-                        new Formatter().joinVoices(voices).formatToStave(voices, sTop);
+                        for (let b = 0; b < timeBeats; b++) {
+                            gridNotes.push(new GhostNote({ duration: "q" }));
+                        }
+                        let gridVoice = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(gridNotes);
+                        gridVoice.setStave(stave);
+                        voices.push(gridVoice); 
                         
-                        if(clef==='grand' || clef==='treble') vT.draw(ctx, sTop);
-                        if(clef==='grand') vB.draw(ctx, sBot);
-                        else if(clef==='bass') vB.draw(ctx, sTop);
-
-                        mX += mW;
+                        let formatter = new Formatter();
+                        formatter.joinVoices(voices).formatToStave(voices, stave);
+                        
+                        // 繪製
+                        if (clefMode === 'grand' || clefMode === 'treble') { voices[0].draw(context, stave); beamsTreble.forEach(b => b.setContext(context).draw()); }
+                        if (clefMode === 'grand') { voices[1].draw(context, staveBass); beamsBass.forEach(b => b.setContext(context).draw()); }
+                        else if (clefMode === 'bass') { voices[0].draw(context, stave); beamsBass.forEach(b => b.setContext(context).draw()); }
                     });
                 });
             });
         }
 
         async function playAll() {
-            if(audioCtx.state === 'suspended') await audioCtx.resume();
-            const beatMs = (60 / parseInt(document.getElementById('bpmSelect').value)) * 1000;
-            for(let m of measures) {
-                let rh = (async () => { for(let n of m.RH) { playTone(n.freq, n.beats); await new Promise(r=>setTimeout(r, n.beats*beatMs)); } })();
-                let lh = (async () => { for(let n of m.LH) { playTone(n.freq, n.beats); await new Promise(r=>setTimeout(r, n.beats*beatMs)); } })();
-                await Promise.all([rh, lh]);
+            if (isPlayingAll || measures.length === 0) return;
+            await Tone.start();
+            let synth = getSynth();
+            synth.releaseAll();
+            
+            isPlayingAll = true;
+            renderScore();
+
+            const bpm = parseInt(document.getElementById('bpmSelect').value);
+            const beatMs = (60 / bpm) * 1000;
+
+            for (let m = 0; m < measures.length; m++) {
+                if (!isPlayingAll) break;
+                const measure = measures[m];
+
+                const playTrack = async (notes) => {
+                    for (let n of notes) {
+                        if (!isPlayingAll) break;
+                        playTone(n.baseFreq, n.octave, n.beats, n.isRest || n.isPlaceholder);
+                        await sleep(n.beats * beatMs);
+                    }
+                };
+
+                await Promise.all([
+                    playTrack(measure.RH),
+                    playTrack(measure.LH)
+                ]);
             }
+            isPlayingAll = false;
+        }
+
+        function toggleMode() {
+            isTeacherMode = !isTeacherMode;
+            const btn = document.getElementById('modeBtn');
+            const tabs = document.querySelector('.workflow-tabs');
+            const s1 = document.getElementById('step1Panel');
+            const s2 = document.getElementById('step2Panel');
+            const student = document.getElementById('studentControls');
+
+            if (isTeacherMode) {
+                btn.innerText = '🧑‍🏫 老師端 Teacher';
+                btn.className = 'btn btn-teacher';
+                tabs.classList.remove('hidden');
+                switchStep(currentStep);
+                student.classList.add('hidden');
+            } else {
+                btn.innerText = '🔔 學生演奏端 Student';
+                btn.className = 'btn btn-student';
+                tabs.classList.add('hidden');
+                s1.classList.add('hidden');
+                s2.classList.add('hidden');
+                student.classList.remove('hidden');
+            }
+            renderScore();
         }
 
         // 初始化
