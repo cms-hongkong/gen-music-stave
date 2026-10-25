@@ -610,9 +610,13 @@
             renderScore();
         }
 
-        // 🌟 修復核心：VexFlow 高低音休止符正確中心座標
-        function getRestKey(clef) {
-            return clef === 'bass' ? "d/3" : "b/4";
+        // 🌟 終極修復：根據時值同譜號，設定標準五線譜坐標
+        function getRestKey(clef, vexDur) {
+            if (clef === 'bass') {
+                return vexDur === 'w' ? "f/3" : "d/3"; // 低音: 全休止掛第4線(f/3), 半/4分坐第3線(d/3)
+            } else {
+                return vexDur === 'w' ? "d/5" : "b/4"; // 高音: 全休止掛第4線(d/5), 半/4分坐第3線(b/4)
+            }
         }
 
         function renderScore() {
@@ -710,7 +714,7 @@
                             let notes = [];
                             
                             if (!dataArr || dataArr.length === 0) {
-                                let ghost = new StaveNote({ keys: [getRestKey(clefName)], duration: "wr", clef: clefName, auto_stem: false });
+                                let ghost = new StaveNote({ keys: [getRestKey(clefName, 'w')], duration: "wr", clef: clefName, auto_stem: false });
                                 ghost.setStyle({ fillStyle: "transparent", strokeStyle: "transparent" });
                                 notes.push(ghost);
                                 return notes;
@@ -721,8 +725,8 @@
                                 
                                 let keys = [];
                                 if (d.isRest || d.isPlaceholder) {
-                                    // 🌟 調用最新修復嘅 getRestKey
-                                    keys = [getRestKey(clefName)];
+                                    // 🌟 調用最新精準休止符坐標
+                                    keys = [getRestKey(clefName, vexDur)];
                                 } else {
                                     let baseOctave = clefName === 'treble' ? 4 : 3;
                                     let accStr = d.acc ? d.acc : '';
@@ -813,8 +817,10 @@
                         gridVoice.setStave(stave);
                         voices.push(gridVoice); 
                         
+                        // 🌟 終極防撞魔法：逐個聲部獨立加入 Formatter，防止引擎亂推休止符！
                         let formatter = new Formatter();
-                        formatter.joinVoices(voices).formatToStave(voices, stave);
+                        voices.forEach(v => formatter.joinVoices([v]));
+                        formatter.formatToStave(voices, stave);
                         
                         if (clefMode === 'grand' || clefMode === 'treble') { voices[0].draw(context, stave); beamsTreble.forEach(b => b.setContext(context).draw()); }
                         if (clefMode === 'grand') { voices[1].draw(context, staveBass); beamsBass.forEach(b => b.setContext(context).draw()); }
