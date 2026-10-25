@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡雅音樂教室 Clare Music Studio - 專業鋼琴大譜表 & 彩虹手鈴製譜工具</title>
+    <title>卡雅音樂教室 Clare Music Studio - 五線譜製譜工作室</title>
     
     <!-- 載入專業樂譜引擎與音色庫 -->
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
@@ -162,7 +162,7 @@
 
     <div class="header">
         <div class="studio-tag">卡雅音樂教室 Clare Music Studio</div>
-        <h1>🎹 鋼琴大譜表 & 彩虹手鈴製譜工作室 (Grand Staff Studio)</h1>
+        <h1>🎹 五線譜製譜工作室</h1>
     </div>
 
     <!-- 頂部通用導航列 -->
@@ -275,7 +275,6 @@
                     <button class="pill-btn" data-val="4" onclick="setBeat(4)">4 拍</button>
                 </div>
             </div>
-            <!-- 🌟 加返：升降號選項 -->
             <div class="control-group">
                 <label>升降:</label>
                 <div class="pill-group" id="accPills">
@@ -338,7 +337,6 @@
     </div>
 
     <script>
-        // 🌟 引入 VexFlow 時加入 Accidental (升降號) 模組
         const { Renderer, Stave, StaveNote, Formatter, Dot, Annotation, StaveConnector, Voice, Beam, GhostNote, Accidental } = Vex.Flow;
         
         let globalSynth = null; 
@@ -357,7 +355,7 @@
         let cursorIndex = 0; 
         let currentBeat = 1;
         let currentFingering = '';
-        let currentAccidental = ''; // 🌟 追蹤目前選擇嘅升降號
+        let currentAccidental = '';
         let currentOctave = 0; 
 
         let measures = [];
@@ -407,7 +405,6 @@
             });
         }
 
-        // 🌟 更新目前選擇嘅升降號
         function setAcc(val) {
             currentAccidental = val;
             document.querySelectorAll('#accPills .pill-btn').forEach(btn => {
@@ -463,7 +460,6 @@
             if (chars.length === 0) {
                 let newMeasure = { id: Date.now(), RH: [], LH: [] };
                 for(let i=0; i<maxBeats; i++) {
-                    // 🌟 加入 acc 屬性
                     newMeasure.RH.push({ acc: '', octave: 0, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i });
                     newMeasure.LH.push({ acc: '', octave: -1, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i+999 });
                 }
@@ -501,7 +497,6 @@
             renderScore();
         }
 
-        // 🌟 升級版 playTone，直接接收 C#4, Db3 等 Tone.js 支援嘅字串
         async function playTone(tonePitchStr, beats, isRest) {
             if (isRest || !tonePitchStr) return;
             await Tone.start();
@@ -511,10 +506,9 @@
         }
 
         function processInput(pitch, solfege, num, colorHex, isRest) {
-            // 🌟 組合 Tone.js 專用字串 (例如 C#4)
             let baseOctave = currentHand === 'RH' ? 4 : 3;
             let finalOctave = baseOctave + currentOctave;
-            let toneAcc = (currentAccidental === 'n') ? '' : currentAccidental; // Tone.js 不需要 'n'
+            let toneAcc = (currentAccidental === 'n') ? '' : currentAccidental;
             let tonePitchStr = isRest ? '' : (pitch.toUpperCase() + toneAcc + finalOctave);
 
             playTone(tonePitchStr, currentBeat, isRest);
@@ -558,7 +552,7 @@
                 const curMeasureNotes = measures[target.mIdx][currentHand];
                 const noteRef = curMeasureNotes[target.nIdx];
 
-                noteRef.acc = currentAccidental; // 🌟 儲存選擇咗嘅升降號
+                noteRef.acc = currentAccidental; 
                 noteRef.octave = currentOctave;
                 noteRef.beats = currentBeat; 
                 noteRef.solfege = isRest ? '' : solfege;
@@ -603,7 +597,7 @@
             const noteRef = measures[target.mIdx][currentHand][target.nIdx];
 
             noteRef.acc = '';
-            noteRef.octave = 1; // 預設還原
+            noteRef.octave = 1; 
             noteRef.beats = 1;
             noteRef.solfege = '';
             noteRef.pitch = '';
@@ -616,12 +610,9 @@
             renderScore();
         }
 
+        // 🌟 完美修復：無論係咩休止符，統一使用 b/4 作為原點，VexFlow 會自動完美排版！
         function getRestKey(clef, vexDur) {
-            if (clef === 'bass') {
-                return vexDur === 'w' ? "f/3" : "d/3";
-            } else {
-                return vexDur === 'w' ? "d/5" : "b/4";
-            }
+            return "b/4"; 
         }
 
         function renderScore() {
@@ -733,7 +724,6 @@
                                     keys = [getRestKey(clefName, vexDur)];
                                 } else {
                                     let baseOctave = clefName === 'treble' ? 4 : 3;
-                                    // 🌟 組合 VexFlow 專用格式字串，例如 "cn/4" 代表還原 C
                                     let accStr = d.acc ? d.acc : '';
                                     keys = [d.pitch.toLowerCase() + accStr + '/' + (baseOctave + d.octave)];
                                 }
@@ -745,7 +735,6 @@
                                     auto_stem: !(d.isRest || d.isPlaceholder) 
                                 });
                                 
-                                // 🌟 將升降號畫上五線譜
                                 if (d.acc && !d.isRest && !d.isPlaceholder) {
                                     note.addModifier(new Accidental(d.acc), 0);
                                 }
@@ -854,7 +843,6 @@
                     let baseOctave = hand === 'RH' ? 4 : 3;
                     for (let n of notes) {
                         if (!isPlayingAll) break;
-                        // 🌟 播放時自動加上升降音計算
                         let toneAcc = (n.acc === 'n' || !n.acc) ? '' : n.acc;
                         let tonePitchStr = n.isRest || n.isPlaceholder ? '' : (n.pitch.toUpperCase() + toneAcc + (baseOctave + n.octave));
                         
