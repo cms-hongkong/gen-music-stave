@@ -610,9 +610,9 @@
             renderScore();
         }
 
-        // 🌟 完美修復：無論係咩休止符，統一使用 b/4 作為原點，VexFlow 會自動完美排版！
-        function getRestKey(clef, vexDur) {
-            return "b/4"; 
+        // 🌟 修復核心：VexFlow 高低音休止符正確中心座標
+        function getRestKey(clef) {
+            return clef === 'bass' ? "d/3" : "b/4";
         }
 
         function renderScore() {
@@ -710,7 +710,7 @@
                             let notes = [];
                             
                             if (!dataArr || dataArr.length === 0) {
-                                let ghost = new StaveNote({ keys: [getRestKey(clefName, 'w')], duration: "wr", clef: clefName, auto_stem: false });
+                                let ghost = new StaveNote({ keys: [getRestKey(clefName)], duration: "wr", clef: clefName, auto_stem: false });
                                 ghost.setStyle({ fillStyle: "transparent", strokeStyle: "transparent" });
                                 notes.push(ghost);
                                 return notes;
@@ -721,7 +721,8 @@
                                 
                                 let keys = [];
                                 if (d.isRest || d.isPlaceholder) {
-                                    keys = [getRestKey(clefName, vexDur)];
+                                    // 🌟 調用最新修復嘅 getRestKey
+                                    keys = [getRestKey(clefName)];
                                 } else {
                                     let baseOctave = clefName === 'treble' ? 4 : 3;
                                     let accStr = d.acc ? d.acc : '';
