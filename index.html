@@ -129,7 +129,7 @@
             border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 980px;
             padding: 30px 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.04);
             display: flex; flex-direction: column; align-items: center;
-            cursor: crosshair; /* 提示可以點擊 */
+            cursor: pointer; /* 提示成個樂譜都可以點擊 */
         }
         
         #vexflow-canvas {
@@ -328,7 +328,7 @@
     <!-- 學生端互動提示 -->
     <div id="studentControls" class="hidden">
         <p style="font-size: 18px; color: #e11d48; font-weight: bold; margin: 10px 0;">
-            🔔 演奏模式開啟！點擊音符可發聲。
+            🔔 演奏模式開啟！
         </p>
     </div>
 
@@ -361,65 +361,51 @@
         let currentOctave = 0; 
 
         let measures = [];
+        
+        // 🌟 記錄所有音符嘅畫面座標，用作「智能吸附」
+        let clickTargets = [];
 
-        // 🌟 神級智能吸附 (Smart Snap)：無論 Click 中線條定係附近吉位，都會自動搵出最近嘅音符！
+        // 🌟 神級 SVG 智能吸附 (Smart Snap) 系統
         document.getElementById('scoreArea').addEventListener('click', (e) => {
             if (!isTeacherMode || currentStep !== 2) return;
             
-            // 1. 嘗試直接篤中
-            let target = e.target;
-            while (target && target !== document.body && target !== document) {
-                let targetId = target.getAttribute ? target.getAttribute('id') : null;
-                if (targetId && targetId.startsWith('vf-note-')) {
-                    triggerNoteClick(targetId);
-                    return;
-                }
-                target = target.parentNode;
-            }
+            let svg = document.querySelector('#vexflow-canvas svg');
+            if (!svg) return;
 
-            // 2. 如果篤唔中（篤中吉位），啟動 80px 雷達探測附近最近嘅音符
-            let clickX = e.clientX;
-            let clickY = e.clientY;
-            let notes = document.querySelectorAll('[id^="vf-note-"]');
-            let closestNote = null;
-            let minDistance = Infinity;
+            // 獲取滑鼠/手指喺螢幕上嘅座標
+            let pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
 
-            notes.forEach(noteNode => {
-                let rect = noteNode.getBoundingClientRect();
-                let noteCenterX = rect.left + rect.width / 2;
-                let noteCenterY = rect.top + rect.height / 2;
-                
-                let dx = clickX - noteCenterX;
-                let dy = clickY - noteCenterY;
-                let distance = Math.sqrt(dx*dx + dy*dy);
+            // 轉換為 VexFlow 內部嘅 SVG 邏輯座標 (完美解決縮放問題)
+            let ctm = svg.getScreenCTM();
+            if (!ctm) return;
+            let svgP = pt.matrixTransform(ctm.inverse());
+            
+            let closest = null;
+            let minDist = Infinity;
 
-                if (distance < minDistance && distance < 80) { // 80px 範圍內自動吸附
-                    minDistance = distance;
-                    closestNote = noteNode;
+            // 掃描所有音符，搵出距離點擊位置最近嘅音符
+            clickTargets.forEach(target => {
+                let dx = target.x - svgP.x;
+                let dy = target.y - svgP.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = target;
                 }
             });
 
-            if (closestNote) {
-                let targetId = closestNote.getAttribute('id');
-                triggerNoteClick(targetId);
-            }
-        });
-
-        // 處理游標跳轉
-        function triggerNoteClick(targetId) {
-            let parts = targetId.split('-'); // 格式: vf-note-RH-0
-            if (parts.length === 4) {
-                let clickedHand = parts[2];
-                let clickedIndex = parseInt(parts[3]);
+            // 如果點擊位置 150px (大約半個小節) 範圍內有音符，就將游標吸過去
+            if (closest && minDist < 150) {
+                currentHand = closest.hand;
+                document.getElementById('btnRH').className = 'hand-toggle-btn ' + (closest.hand === 'RH' ? 'hand-active-rh' : '');
+                document.getElementById('btnLH').className = 'hand-toggle-btn ' + (closest.hand === 'LH' ? 'hand-active-lh' : '');
                 
-                currentHand = clickedHand;
-                document.getElementById('btnRH').className = 'hand-toggle-btn ' + (clickedHand === 'RH' ? 'hand-active-rh' : '');
-                document.getElementById('btnLH').className = 'hand-toggle-btn ' + (clickedHand === 'LH' ? 'hand-active-lh' : '');
-                
-                cursorIndex = clickedIndex;
+                cursorIndex = closest.index;
                 renderScore();
             }
-        }
+        });
 
         window.addEventListener('keydown', (e) => {
             if (!isTeacherMode || currentStep !== 2) return;
@@ -682,6 +668,7 @@
         function renderScore() {
             const canvasContainer = document.getElementById("vexflow-canvas");
             canvasContainer.innerHTML = ""; 
+            clickTargets = []; // 🌟 每次 Render 都清空並重新計算座標
 
             const clefMode = document.getElementById("staffModeSelect").value;
             const timeSigStr = document.getElementById("timeSigSelect").value;
@@ -702,7 +689,6 @@
             const lineSpacing = clefMode === 'grand' ? 290 : 150;
             const topMargin = 50;
 
-            // 🌟 核心：確保每次 Render 都由 0 開始計數
             let indexRH = 0;
             let indexLH = 0;
 
@@ -808,16 +794,16 @@
                                     align_center: (vexDur === 'w' && (d.isRest || d.isPlaceholder)) 
                                 });
                                 
+                                // 🌟 綁定內部數據，方便後續抽取座標
+                                note.myHand = trackHand;
+                                note.myIndex = (trackHand === 'RH') ? indexRH : indexLH;
+
                                 if (d.acc && !d.isRest && !d.isPlaceholder) {
                                     note.addModifier(new Accidental(d.acc), 0);
                                 }
 
-                                // 🌟 使用獨立計數器賦予 ID，並確保精確配對
-                                let currentIndex = (trackHand === 'RH') ? indexRH : indexLH;
-                                let isTargetCursor = (currentStep === 2 && currentHand === trackHand && currentIndex === cursorIndex);
+                                let isTargetCursor = (currentStep === 2 && currentHand === trackHand && note.myIndex === cursorIndex);
                                 
-                                note.setAttribute('id', `vf-note-${trackHand}-${currentIndex}`);
-
                                 if (d.isPlaceholder) {
                                     note.setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
                                 } else if (!d.isRest) {
@@ -891,6 +877,23 @@
                         if (clefMode === 'grand' || clefMode === 'treble') { voices[0].draw(context, stave); beamsTreble.forEach(b => b.setContext(context).draw()); }
                         if (clefMode === 'grand') { voices[1].draw(context, staveBass); beamsBass.forEach(b => b.setContext(context).draw()); }
                         else if (clefMode === 'bass') { voices[0].draw(context, stave); beamsBass.forEach(b => b.setContext(context).draw()); }
+                        
+                        // 🌟 排版後，自動儲存每個音符嘅絕對座標入雷達網！
+                        if (clefMode === 'grand' || clefMode === 'treble') {
+                            tNotes.forEach(note => {
+                                if (note.myHand) {
+                                    clickTargets.push({ hand: note.myHand, index: note.myIndex, x: note.getAbsoluteX(), y: stave.getYForLine(2) });
+                                }
+                            });
+                        }
+                        if (clefMode === 'grand' || clefMode === 'bass') {
+                            let targetStave = clefMode === 'grand' ? staveBass : stave;
+                            bNotes.forEach(note => {
+                                if (note.myHand) {
+                                    clickTargets.push({ hand: note.myHand, index: note.myIndex, x: note.getAbsoluteX(), y: targetStave.getYForLine(2) });
+                                }
+                            });
+                        }
                     });
                 });
             });
