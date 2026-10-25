@@ -24,6 +24,7 @@
         body { 
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, "PingFang HK", "Microsoft JhengHei", sans-serif; 
             text-align: center; background-color: #f1f5f9; padding: 12px; margin: 0; color: #1e293b;
+            user-select: none; /* 防止篤錯反白文字 */
         }
 
         .header { margin-bottom: 8px; }
@@ -128,6 +129,7 @@
             border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 980px;
             padding: 30px 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.04);
             display: flex; flex-direction: column; align-items: center;
+            cursor: crosshair; /* 提示可以點擊 */
         }
         
         #vexflow-canvas {
@@ -140,10 +142,6 @@
             max-width: 100%;
             height: auto;
         }
-        
-        /* 🌟 讓樂譜上的音符顯示為可點擊 */
-        .vf-clickable { cursor: pointer; transition: opacity 0.2s; }
-        .vf-clickable:hover { opacity: 0.6; }
         
         .hidden { display: none !important; }
 
@@ -158,7 +156,7 @@
             @page { margin: 8mm; size: portrait; }
             body { background: white; padding: 0; }
             .header, .top-bar, .workflow-tabs, .panel-box, #keyboardArea, #studentControls, .bell-guide-container { display: none !important; }
-            .score-area { border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+            .score-area { border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; cursor: default; }
         }
     </style>
 </head>
@@ -310,7 +308,7 @@
         </div>
 
         <div style="font-size: 13px; font-weight:bold; color: #2563eb; margin-top:2px;">
-            ⌨️ <b>可點擊樂譜上的音符直接修改。</b> 或按鍵盤 <b>1~7</b> 填入，<b>Backspace</b> 清除：
+            ⌨️ <b>直接點擊樂譜上的音符修改。</b> 或按鍵盤 <b>1~7</b> 填入，<b>Backspace</b> 清除：
         </div>
 
         <!-- 彩虹琴鍵盤 -->
@@ -364,31 +362,64 @@
 
         let measures = [];
 
-        // 🌟 點擊樂譜直接跳轉游標嘅全域監聽器
-        document.addEventListener('click', (e) => {
+        // 🌟 神級智能吸附 (Smart Snap)：無論 Click 中線條定係附近吉位，都會自動搵出最近嘅音符！
+        document.getElementById('scoreArea').addEventListener('click', (e) => {
             if (!isTeacherMode || currentStep !== 2) return;
+            
+            // 1. 嘗試直接篤中
             let target = e.target;
-            while (target && target.tagName !== 'HTML') {
-                if (target.id && target.id.startsWith('vf-note-')) {
-                    let parts = target.id.split('-'); // 格式: vf-note-RH-0
-                    if (parts.length === 4) {
-                        let clickedHand = parts[2];
-                        let clickedIndex = parseInt(parts[3]);
-                        
-                        // 自動切換到對應嘅手
-                        currentHand = clickedHand;
-                        document.getElementById('btnRH').className = 'hand-toggle-btn ' + (clickedHand === 'RH' ? 'hand-active-rh' : '');
-                        document.getElementById('btnLH').className = 'hand-toggle-btn ' + (clickedHand === 'LH' ? 'hand-active-lh' : '');
-                        
-                        // 將游標移到點擊嘅位置
-                        cursorIndex = clickedIndex;
-                        renderScore();
-                    }
+            while (target && target !== document.body && target !== document) {
+                let targetId = target.getAttribute ? target.getAttribute('id') : null;
+                if (targetId && targetId.startsWith('vf-note-')) {
+                    triggerNoteClick(targetId);
                     return;
                 }
                 target = target.parentNode;
             }
+
+            // 2. 如果篤唔中（篤中吉位），啟動 80px 雷達探測附近最近嘅音符
+            let clickX = e.clientX;
+            let clickY = e.clientY;
+            let notes = document.querySelectorAll('[id^="vf-note-"]');
+            let closestNote = null;
+            let minDistance = Infinity;
+
+            notes.forEach(noteNode => {
+                let rect = noteNode.getBoundingClientRect();
+                let noteCenterX = rect.left + rect.width / 2;
+                let noteCenterY = rect.top + rect.height / 2;
+                
+                let dx = clickX - noteCenterX;
+                let dy = clickY - noteCenterY;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+
+                if (distance < minDistance && distance < 80) { // 80px 範圍內自動吸附
+                    minDistance = distance;
+                    closestNote = noteNode;
+                }
+            });
+
+            if (closestNote) {
+                let targetId = closestNote.getAttribute('id');
+                triggerNoteClick(targetId);
+            }
         });
+
+        // 處理游標跳轉
+        function triggerNoteClick(targetId) {
+            let parts = targetId.split('-'); // 格式: vf-note-RH-0
+            if (parts.length === 4) {
+                let clickedHand = parts[2];
+                let clickedIndex = parseInt(parts[3]);
+                
+                currentHand = clickedHand;
+                document.getElementById('btnRH').className = 'hand-toggle-btn ' + (clickedHand === 'RH' ? 'hand-active-rh' : '');
+                document.getElementById('btnLH').className = 'hand-toggle-btn ' + (clickedHand === 'LH' ? 'hand-active-lh' : '');
+                
+                cursorIndex = clickedIndex;
+                renderScore();
+            }
+        }
 
         window.addEventListener('keydown', (e) => {
             if (!isTeacherMode || currentStep !== 2) return;
@@ -462,7 +493,7 @@
             document.getElementById('btnLH').className = 'hand-toggle-btn ' + (hand === 'LH' ? 'hand-active-lh' : '');
             if (hand === 'LH') setOctave(-1); 
             else setOctave(0); 
-            cursorIndex = 0; // 透過按鈕切換手時，預設重置回開頭
+            cursorIndex = 0;
             renderScore();
         }
 
@@ -671,6 +702,7 @@
             const lineSpacing = clefMode === 'grand' ? 290 : 150;
             const topMargin = 50;
 
+            // 🌟 核心：確保每次 Render 都由 0 開始計數
             let indexRH = 0;
             let indexLH = 0;
 
@@ -780,13 +812,11 @@
                                     note.addModifier(new Accidental(d.acc), 0);
                                 }
 
-                                // 🌟 計算目前音符嘅獨立 Index，用於點擊與游標對齊
+                                // 🌟 使用獨立計數器賦予 ID，並確保精確配對
                                 let currentIndex = (trackHand === 'RH') ? indexRH : indexLH;
                                 let isTargetCursor = (currentStep === 2 && currentHand === trackHand && currentIndex === cursorIndex);
                                 
-                                // 🌟 綁定 ID 同 Class，令佢可以用 Mouse / 手指點擊！
                                 note.setAttribute('id', `vf-note-${trackHand}-${currentIndex}`);
-                                note.setAttribute('class', 'vf-clickable');
 
                                 if (d.isPlaceholder) {
                                     note.setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
@@ -820,7 +850,6 @@
                                 
                                 notes.push(note);
 
-                                // 遞增各聲部專屬 Index
                                 if (trackHand === 'RH') indexRH++;
                                 else indexLH++;
                             });
