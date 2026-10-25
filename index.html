@@ -610,12 +610,11 @@
             renderScore();
         }
 
-        // 🌟 終極修復：根據時值同譜號，設定標準五線譜坐標
         function getRestKey(clef, vexDur) {
             if (clef === 'bass') {
-                return vexDur === 'w' ? "f/3" : "d/3"; // 低音: 全休止掛第4線(f/3), 半/4分坐第3線(d/3)
+                return vexDur === 'w' ? "f/3" : "d/3";
             } else {
-                return vexDur === 'w' ? "d/5" : "b/4"; // 高音: 全休止掛第4線(d/5), 半/4分坐第3線(b/4)
+                return vexDur === 'w' ? "d/5" : "b/4";
             }
         }
 
@@ -714,7 +713,13 @@
                             let notes = [];
                             
                             if (!dataArr || dataArr.length === 0) {
-                                let ghost = new StaveNote({ keys: [getRestKey(clefName, 'w')], duration: "wr", clef: clefName, auto_stem: false });
+                                let ghost = new StaveNote({ 
+                                    keys: [getRestKey(clefName, 'w')], 
+                                    duration: "wr", 
+                                    clef: clefName, 
+                                    auto_stem: false,
+                                    align_center: true // 🌟 空白小節全休止符置中
+                                });
                                 ghost.setStyle({ fillStyle: "transparent", strokeStyle: "transparent" });
                                 notes.push(ghost);
                                 return notes;
@@ -725,7 +730,6 @@
                                 
                                 let keys = [];
                                 if (d.isRest || d.isPlaceholder) {
-                                    // 🌟 調用最新精準休止符坐標
                                     keys = [getRestKey(clefName, vexDur)];
                                 } else {
                                     let baseOctave = clefName === 'treble' ? 4 : 3;
@@ -737,7 +741,8 @@
                                     keys: keys, 
                                     duration: vexDur + ((d.isRest || d.isPlaceholder) ? "r" : ""), 
                                     clef: clefName, 
-                                    auto_stem: !(d.isRest || d.isPlaceholder) 
+                                    auto_stem: !(d.isRest || d.isPlaceholder),
+                                    align_center: (vexDur === 'w' && (d.isRest || d.isPlaceholder)) // 🌟 關鍵修復：單個全休止符自動置中整個小節
                                 });
                                 
                                 if (d.acc && !d.isRest && !d.isPlaceholder) {
@@ -817,7 +822,6 @@
                         gridVoice.setStave(stave);
                         voices.push(gridVoice); 
                         
-                        // 🌟 終極防撞魔法：逐個聲部獨立加入 Formatter，防止引擎亂推休止符！
                         let formatter = new Formatter();
                         voices.forEach(v => formatter.joinVoices([v]));
                         formatter.formatToStave(voices, stave);
