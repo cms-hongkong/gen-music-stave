@@ -275,6 +275,16 @@
                     <button class="pill-btn" data-val="4" onclick="setBeat(4)">4 拍</button>
                 </div>
             </div>
+            <!-- 🌟 加返：升降號選項 -->
+            <div class="control-group">
+                <label>升降:</label>
+                <div class="pill-group" id="accPills">
+                    <button class="pill-btn active" data-val="" onclick="setAcc('')">無</button>
+                    <button class="pill-btn" data-val="#" onclick="setAcc('#')">#</button>
+                    <button class="pill-btn" data-val="b" onclick="setAcc('b')">b</button>
+                    <button class="pill-btn" data-val="n" onclick="setAcc('n')">♮</button>
+                </div>
+            </div>
             <div class="control-group">
                 <label>指法:</label>
                 <div class="pill-group" id="fingeringPills">
@@ -302,14 +312,14 @@
 
         <!-- 彩虹琴鍵盤 -->
         <div class="keyboard" id="keyboardArea">
-            <button class="note-btn c-red" onclick="processInput(261.63, 'Do', 'C', '1', '#E74C3C', false)"><span class="solfege">Do</span><span class="pitch">1 / C</span></button>
-            <button class="note-btn d-orange" onclick="processInput(293.66, 'Re', 'D', '2', '#E67E22', false)"><span class="solfege">Re</span><span class="pitch">2 / D</span></button>
-            <button class="note-btn e-yellow" onclick="processInput(329.63, 'Mi', 'E', '3', '#F1C40F', false)"><span class="solfege">Mi</span><span class="pitch">3 / E</span></button>
-            <button class="note-btn f-green" onclick="processInput(349.23, 'Fa', 'F', '4', '#2ECC71', false)"><span class="solfege">Fa</span><span class="pitch">4 / F</span></button>
-            <button class="note-btn g-cyan" onclick="processInput(392.00, 'Sol', 'G', '5', '#1ABC9C', false)"><span class="solfege">Sol</span><span class="pitch">5 / G</span></button>
-            <button class="note-btn a-blue" onclick="processInput(440.00, 'La', 'A', '6', '#2980B9', false)"><span class="solfege">La</span><span class="pitch">6 / A</span></button>
-            <button class="note-btn b-purple" onclick="processInput(493.88, 'Ti', 'B', '7', '#8E44AD', false)"><span class="solfege">Ti</span><span class="pitch">7 / B</span></button>
-            <button class="note-btn rest-btn" onclick="processInput(0, '休', 'Rest', '0', '#94a3b8', true)"><span class="solfege">X</span><span class="pitch">休止</span></button>
+            <button class="note-btn c-red" onclick="processInput('C', 'Do', '1', '#E74C3C', false)"><span class="solfege">Do</span><span class="pitch">1 / C</span></button>
+            <button class="note-btn d-orange" onclick="processInput('D', 'Re', '2', '#E67E22', false)"><span class="solfege">Re</span><span class="pitch">2 / D</span></button>
+            <button class="note-btn e-yellow" onclick="processInput('E', 'Mi', '3', '#F1C40F', false)"><span class="solfege">Mi</span><span class="pitch">3 / E</span></button>
+            <button class="note-btn f-green" onclick="processInput('F', 'Fa', '4', '#2ECC71', false)"><span class="solfege">Fa</span><span class="pitch">4 / F</span></button>
+            <button class="note-btn g-cyan" onclick="processInput('G', 'Sol', '5', '#1ABC9C', false)"><span class="solfege">Sol</span><span class="pitch">5 / G</span></button>
+            <button class="note-btn a-blue" onclick="processInput('A', 'La', '6', '#2980B9', false)"><span class="solfege">La</span><span class="pitch">6 / A</span></button>
+            <button class="note-btn b-purple" onclick="processInput('B', 'Ti', '7', '#8E44AD', false)"><span class="solfege">Ti</span><span class="pitch">7 / B</span></button>
+            <button class="note-btn rest-btn" onclick="processInput('Rest', '休', '0', '#94a3b8', true)"><span class="solfege">X</span><span class="pitch">休止</span></button>
             <button class="note-btn back-btn" onclick="backspaceDelete()"><span style="font-size:16px;">⌫</span><span style="font-size:10px; font-weight:bold;">清除</span></button>
         </div>
     </div>
@@ -328,7 +338,8 @@
     </div>
 
     <script>
-        const { Renderer, Stave, StaveNote, Formatter, Dot, Annotation, StaveConnector, Voice, Beam, GhostNote } = Vex.Flow;
+        // 🌟 引入 VexFlow 時加入 Accidental (升降號) 模組
+        const { Renderer, Stave, StaveNote, Formatter, Dot, Annotation, StaveConnector, Voice, Beam, GhostNote, Accidental } = Vex.Flow;
         
         let globalSynth = null; 
         function getSynth() {
@@ -346,6 +357,7 @@
         let cursorIndex = 0; 
         let currentBeat = 1;
         let currentFingering = '';
+        let currentAccidental = ''; // 🌟 追蹤目前選擇嘅升降號
         let currentOctave = 0; 
 
         let measures = [];
@@ -361,15 +373,15 @@
             }
 
             const map = {
-                '1': [261.63, 'Do', 'C', '1', '#E74C3C', false],
-                '2': [293.66, 'Re', 'D', '2', '#E67E22', false],
-                '3': [329.63, 'Mi', 'E', '3', '#F1C40F', false],
-                '4': [349.23, 'Fa', 'F', '4', '#2ECC71', false],
-                '5': [392.00, 'Sol', 'G', '5', '#1ABC9C', false],
-                '6': [440.00, 'La', 'A', '6', '#2980B9', false],
-                '7': [493.88, 'Ti', 'B', '7', '#8E44AD', false],
-                '0': [0, '休', 'Rest', '0', '#94a3b8', true],
-                ' ': [0, '休', 'Rest', '0', '#94a3b8', true]
+                '1': ['C', 'Do', '1', '#E74C3C', false],
+                '2': ['D', 'Re', '2', '#E67E22', false],
+                '3': ['E', 'Mi', '3', '#F1C40F', false],
+                '4': ['F', 'Fa', '4', '#2ECC71', false],
+                '5': ['G', 'Sol', '5', '#1ABC9C', false],
+                '6': ['A', 'La', '6', '#2980B9', false],
+                '7': ['B', 'Ti', '7', '#8E44AD', false],
+                '0': ['Rest', '休', '0', '#94a3b8', true],
+                ' ': ['Rest', '休', '0', '#94a3b8', true]
             };
             if (map[e.key]) {
                 e.preventDefault();
@@ -392,6 +404,14 @@
             currentBeat = parseFloat(val);
             document.querySelectorAll('#beatPills .pill-btn').forEach(btn => {
                 btn.classList.toggle('active', parseFloat(btn.dataset.val) === currentBeat);
+            });
+        }
+
+        // 🌟 更新目前選擇嘅升降號
+        function setAcc(val) {
+            currentAccidental = val;
+            document.querySelectorAll('#accPills .pill-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.val === currentAccidental);
             });
         }
 
@@ -443,8 +463,9 @@
             if (chars.length === 0) {
                 let newMeasure = { id: Date.now(), RH: [], LH: [] };
                 for(let i=0; i<maxBeats; i++) {
-                    newMeasure.RH.push({ baseFreq: 0, octave: 0, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i });
-                    newMeasure.LH.push({ baseFreq: 0, octave: -1, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i+999 });
+                    // 🌟 加入 acc 屬性
+                    newMeasure.RH.push({ acc: '', octave: 0, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i });
+                    newMeasure.LH.push({ acc: '', octave: -1, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i+999 });
                 }
                 measures.push(newMeasure);
                 renderScore();
@@ -463,13 +484,13 @@
                 }
 
                 curMeasure.RH.push({
-                    baseFreq: 0, octave: 0, beats: 1, solfege: '', pitch: '', num: '',
+                    acc: '', octave: 0, beats: 1, solfege: '', pitch: '', num: '',
                     color: '#cbd5e1', fingering: '', lyric: ch === ' ' ? '' : ch,
                     isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + idx
                 });
 
                 curMeasure.LH.push({
-                    baseFreq: 0, octave: -1, beats: 1, solfege: '', pitch: '', num: '',
+                    acc: '', octave: -1, beats: 1, solfege: '', pitch: '', num: '',
                     color: '#cbd5e1', fingering: '', lyric: '',
                     isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + idx + 999
                 });
@@ -480,16 +501,23 @@
             renderScore();
         }
 
-        async function playTone(baseFreq, octaveIndex, beats, isRest) {
-            if (isRest || baseFreq === 0) return;
+        // 🌟 升級版 playTone，直接接收 C#4, Db3 等 Tone.js 支援嘅字串
+        async function playTone(tonePitchStr, beats, isRest) {
+            if (isRest || !tonePitchStr) return;
             await Tone.start();
             let synth = getSynth();
             let durStr = beats === 4 ? "1n" : (beats === 2 ? "2n" : (beats === 1 ? "4n" : "8n"));
-            synth.triggerAttackRelease(baseFreq * Math.pow(2, octaveIndex), durStr);
+            synth.triggerAttackRelease(tonePitchStr, durStr);
         }
 
-        function processInput(baseFreq, solfege, pitch, num, colorHex, isRest) {
-            playTone(baseFreq, currentOctave, currentBeat, isRest);
+        function processInput(pitch, solfege, num, colorHex, isRest) {
+            // 🌟 組合 Tone.js 專用字串 (例如 C#4)
+            let baseOctave = currentHand === 'RH' ? 4 : 3;
+            let finalOctave = baseOctave + currentOctave;
+            let toneAcc = (currentAccidental === 'n') ? '' : currentAccidental; // Tone.js 不需要 'n'
+            let tonePitchStr = isRest ? '' : (pitch.toUpperCase() + toneAcc + finalOctave);
+
+            playTone(tonePitchStr, currentBeat, isRest);
 
             let allSlots = [];
             measures.forEach((m, mIdx) => {
@@ -505,12 +533,12 @@
                 let newMeasure = { id: Date.now() + Math.random(), RH: [], LH: [] };
                 for(let i=0; i<maxBeats; i++) {
                     newMeasure.RH.push({
-                        baseFreq: 0, octave: 0, beats: 1, solfege: '', pitch: '', num: '',
+                        acc: '', octave: 0, beats: 1, solfege: '', pitch: '', num: '',
                         color: '#cbd5e1', fingering: '', lyric: '',
                         isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i
                     });
                     newMeasure.LH.push({
-                        baseFreq: 0, octave: -1, beats: 1, solfege: '', pitch: '', num: '',
+                        acc: '', octave: -1, beats: 1, solfege: '', pitch: '', num: '',
                         color: '#cbd5e1', fingering: '', lyric: '',
                         isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i + 999
                     });
@@ -530,7 +558,7 @@
                 const curMeasureNotes = measures[target.mIdx][currentHand];
                 const noteRef = curMeasureNotes[target.nIdx];
 
-                noteRef.baseFreq = baseFreq;
+                noteRef.acc = currentAccidental; // 🌟 儲存選擇咗嘅升降號
                 noteRef.octave = currentOctave;
                 noteRef.beats = currentBeat; 
                 noteRef.solfege = isRest ? '' : solfege;
@@ -574,7 +602,8 @@
             const target = allSlots[targetIdx];
             const noteRef = measures[target.mIdx][currentHand][target.nIdx];
 
-            noteRef.baseFreq = 0;
+            noteRef.acc = '';
+            noteRef.octave = 1; // 預設還原
             noteRef.beats = 1;
             noteRef.solfege = '';
             noteRef.pitch = '';
@@ -704,7 +733,9 @@
                                     keys = [getRestKey(clefName, vexDur)];
                                 } else {
                                     let baseOctave = clefName === 'treble' ? 4 : 3;
-                                    keys = [d.pitch.toLowerCase() + '/' + (baseOctave + d.octave)];
+                                    // 🌟 組合 VexFlow 專用格式字串，例如 "cn/4" 代表還原 C
+                                    let accStr = d.acc ? d.acc : '';
+                                    keys = [d.pitch.toLowerCase() + accStr + '/' + (baseOctave + d.octave)];
                                 }
                                 
                                 let note = new StaveNote({ 
@@ -714,6 +745,11 @@
                                     auto_stem: !(d.isRest || d.isPlaceholder) 
                                 });
                                 
+                                // 🌟 將升降號畫上五線譜
+                                if (d.acc && !d.isRest && !d.isPlaceholder) {
+                                    note.addModifier(new Accidental(d.acc), 0);
+                                }
+
                                 let isTargetCursor = (currentStep === 2 && currentHand === trackHand && globalCounter === cursorIndex);
                                 
                                 if (d.isPlaceholder) {
@@ -814,17 +850,22 @@
                 if (!isPlayingAll) break;
                 const measure = measures[m];
 
-                const playTrack = async (notes) => {
+                const playTrack = async (notes, hand) => {
+                    let baseOctave = hand === 'RH' ? 4 : 3;
                     for (let n of notes) {
                         if (!isPlayingAll) break;
-                        playTone(n.baseFreq, n.octave, n.beats, n.isRest || n.isPlaceholder);
+                        // 🌟 播放時自動加上升降音計算
+                        let toneAcc = (n.acc === 'n' || !n.acc) ? '' : n.acc;
+                        let tonePitchStr = n.isRest || n.isPlaceholder ? '' : (n.pitch.toUpperCase() + toneAcc + (baseOctave + n.octave));
+                        
+                        playTone(tonePitchStr, n.beats, n.isRest || n.isPlaceholder);
                         await sleep(n.beats * beatMs);
                     }
                 };
 
                 await Promise.all([
-                    playTrack(measure.RH),
-                    playTrack(measure.LH)
+                    playTrack(measure.RH, 'RH'),
+                    playTrack(measure.LH, 'LH')
                 ]);
             }
             isPlayingAll = false;
@@ -855,7 +896,6 @@
             renderScore();
         }
 
-        // 🌟 強效升級版：支援 iOS Safari 嘅高清 PNG 匯出
         function exportImage() {
             const svgs = document.querySelectorAll("#vexflow-canvas svg");
             if (svgs.length === 0) {
@@ -867,7 +907,6 @@
             let maxWidth = 0;
             const svgDataList = [];
 
-            // 1. 收集所有 SVG 資料，並強制加入 xmlns 屬性 (Safari 必備)
             svgs.forEach(svg => {
                 const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
                 const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
@@ -894,7 +933,6 @@
             
             totalHeight += titleHeight + 20; 
 
-            // 2. 建立 2 倍放大嘅虛擬畫布，保證高清
             const exportScale = 2;
             const canvas = document.createElement("canvas");
             canvas.width = (maxWidth + 40) * exportScale; 
@@ -902,7 +940,6 @@
             const ctx = canvas.getContext("2d");
             ctx.scale(exportScale, exportScale);
 
-            // 鋪白底與寫標題
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -920,11 +957,9 @@
                  return;
             }
 
-            // 3. 完美避開 Safari Blob 限制，直接用 Base64 轉換 SVG
             svgDataList.forEach((data) => {
                 const img = new Image();
                 
-                // 將 SVG 文字透過 encodeURIComponent 轉換為 Base64
                 const svg64 = btoa(unescape(encodeURIComponent(data.svgString)));
                 const image64 = 'data:image/svg+xml;base64,' + svg64;
 
@@ -943,7 +978,6 @@
                 img.src = image64;
             });
 
-            // 4. 強制觸發下載 (附加落 DOM 呃過 Safari 安全攔截)
             function downloadCanvas(cvs) {
                 try {
                     const link = document.createElement("a");
@@ -951,9 +985,9 @@
                     link.download = fileName + ".png";
                     link.href = cvs.toDataURL("image/png", 1.0);
                     
-                    document.body.appendChild(link); // Safari 必備動作
+                    document.body.appendChild(link); 
                     link.click();
-                    document.body.removeChild(link); // 用完即棄
+                    document.body.removeChild(link); 
                 } catch (e) {
                     alert("瀏覽器安全限制，無法直接下載圖片，請嘗試匯出 PDF。");
                 }
