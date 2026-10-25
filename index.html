@@ -121,12 +121,24 @@
         .a-blue { background-color: var(--a-blue); color: white; }
         .b-purple { background-color: var(--b-purple); color: white; }
 
-        /* 樂譜畫布容器 */
+        /* 🌟 樂譜畫布容器 - 升級完美自適應螢幕大小，永不超框 */
         .score-area { 
             background: white; border: 2px dashed #cbd5e1; 
             border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 980px;
             padding: 30px 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.04);
-            overflow-x: auto;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        
+        /* 🌟 VexFlow 專屬自適應設定：等比例縮放至容器寬度，免去左右滾動 */
+        #vexflow-canvas {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #vexflow-canvas svg {
+            max-width: 100%;
+            height: auto;
         }
         
         .hidden { display: none !important; }
@@ -237,7 +249,7 @@
                 <label style="font-size:12px; font-weight:bold; color:#475569; margin-bottom:4px;">
                     📝 輸入完整歌詞（自動生成嚴格對齊的 1 拍佔位符）：
                 </label>
-                <textarea id="fullLyricsInput" style="height:65px; width:100%; font-size:14px;" placeholder="例: 瑪莉有隻小綿羊 小綿羊 小綿羊" oninput="onLyricsInput()"></textarea>
+                <textarea id="fullLyricsInput" style="height:65px; width:100%; font-size:14px;" placeholder="例: 瑪莉有隻小綿羊 (💡 如不需要歌詞，可直接略過此步入音階)" oninput="onLyricsInput()"></textarea>
             </div>
         </div>
         <div style="font-size: 12px; color: #64748b;">
@@ -337,7 +349,7 @@
         let currentOctave = 0; // 0 = 中音(C4), 1 = 高音, -1 = 低音
 
         // 系統資料結構：基於歌詞生成小節，每個小節有左右手陣列
-        let measures = [ { id: 1, RH: [], LH: [] } ];
+        let measures = [];
 
         window.addEventListener('keydown', (e) => {
             if (!isTeacherMode || currentStep !== 2) return;
@@ -428,6 +440,19 @@
             const maxBeats = parseInt(timeSigVal.split('/')[0]);
 
             const chars = raw.split('');
+            measures = [];
+            
+            if (chars.length === 0) {
+                let newMeasure = { id: Date.now(), RH: [], LH: [] };
+                for(let i=0; i<maxBeats; i++) {
+                    newMeasure.RH.push({ baseFreq: 0, octave: 0, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i });
+                    newMeasure.LH.push({ baseFreq: 0, octave: -1, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i+999 });
+                }
+                measures.push(newMeasure);
+                renderScore();
+                return;
+            }
+
             measures = [{ id: 1, RH: [], LH: [] }];
             let curMeasure = measures[0];
             let curBeats = 0;
@@ -439,14 +464,12 @@
                     curBeats = 0;
                 }
 
-                // 右手預設放歌詞
                 curMeasure.RH.push({
                     baseFreq: 0, octave: 0, beats: 1, solfege: '', pitch: '', num: '',
                     color: '#cbd5e1', fingering: '', lyric: ch === ' ' ? '' : ch,
                     isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + idx
                 });
 
-                // 左手預設吉位
                 curMeasure.LH.push({
                     baseFreq: 0, octave: -1, beats: 1, solfege: '', pitch: '', num: '',
                     color: '#cbd5e1', fingering: '', lyric: '',
@@ -456,7 +479,6 @@
                 curBeats += 1;
             });
 
-            if (chars.length === 0) measures = [{ id: 1, RH: [], LH: [] }];
             renderScore();
         }
 
@@ -480,6 +502,34 @@
                 });
             });
 
+            // 自動無限增加新小節
+            if (cursorIndex >= allSlots.length) {
+                const timeSigVal = document.getElementById('timeSigSelect').value;
+                const maxBeats = parseInt(timeSigVal.split('/')[0]);
+                
+                let newMeasure = { id: Date.now() + Math.random(), RH: [], LH: [] };
+                for(let i=0; i<maxBeats; i++) {
+                    newMeasure.RH.push({
+                        baseFreq: 0, octave: 0, beats: 1, solfege: '', pitch: '', num: '',
+                        color: '#cbd5e1', fingering: '', lyric: '',
+                        isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i
+                    });
+                    newMeasure.LH.push({
+                        baseFreq: 0, octave: -1, beats: 1, solfege: '', pitch: '', num: '',
+                        color: '#cbd5e1', fingering: '', lyric: '',
+                        isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i + 999
+                    });
+                }
+                measures.push(newMeasure);
+                
+                allSlots = [];
+                measures.forEach((m, mIdx) => {
+                    m[currentHand].forEach((n, nIdx) => {
+                        allSlots.push({ mIdx, nIdx, note: n });
+                    });
+                });
+            }
+
             if (cursorIndex < allSlots.length) {
                 const target = allSlots[cursorIndex];
                 const curMeasureNotes = measures[target.mIdx][currentHand];
@@ -496,7 +546,6 @@
                 noteRef.isRest = isRest;
                 noteRef.isPlaceholder = false;
 
-                // 吞噬佔位符 (例如2拍吞1個，4拍吞3個)
                 const slotsToAbsorb = Math.floor(currentBeat) - 1;
                 if (slotsToAbsorb > 0) {
                     for (let s = 0; s < slotsToAbsorb; s++) {
@@ -543,7 +592,6 @@
             renderScore();
         }
 
-        // 完美還原休止符座標
         function getRestKey(clef, vexDur) {
             if (clef === 'bass') {
                 return vexDur === 'w' ? "f/3" : "d/3";
@@ -555,16 +603,15 @@
         // VexFlow 完美渲染引擎
         function renderScore() {
             const canvasContainer = document.getElementById("vexflow-canvas");
-            canvasContainer.innerHTML = ""; // 清空舊畫布
+            canvasContainer.innerHTML = ""; 
 
             const clefMode = document.getElementById("staffModeSelect").value;
             const timeSigStr = document.getElementById("timeSigSelect").value;
             const timeBeats = parseInt(timeSigStr.split('/')[0]); 
             const maxLinesPerPage = parseInt(document.getElementById('linesPerPageSelect').value) || 5; 
 
-            // 將 measures 轉換為行 (Rows)
             let lines = [];
-            const MEASURES_PER_LINE = 2; // 固定每行 2 小節 (與之前 300px 完美對齊)
+            const MEASURES_PER_LINE = 2; 
             for (let i = 0; i < measures.length; i += MEASURES_PER_LINE) {
                 lines.push(measures.slice(i, i + MEASURES_PER_LINE));
             }
@@ -577,7 +624,7 @@
             const lineSpacing = clefMode === 'grand' ? 290 : 150;
             const topMargin = 50;
 
-            let globalCounter = 0; // 用於追蹤 cursorIndex
+            let globalCounter = 0; 
 
             pages.forEach((pageLines, pageIndex) => {
                 let maxLineWidth = 0;
@@ -587,7 +634,6 @@
                     let currentLineWidth = 20;
                     let mWidths = [];
                     lineGroup.forEach((measureGroup, mIndex) => {
-                        // 🌟 絕對鎖定每小節 300px，第一小節多 60px 用嚟擺譜號
                         let requiredWidth = 300 + (mIndex === 0 ? 60 : 0);
                         mWidths.push(requiredWidth);
                         currentLineWidth += requiredWidth;
@@ -601,10 +647,15 @@
 
                 let wrapperDiv = document.createElement("div");
                 wrapperDiv.style.marginBottom = "20px";
+                // 🌟 確保 wrapperDiv 可以佔滿 100% 寬度並居中，配合 CSS 嘅完美自適應
+                wrapperDiv.style.width = "100%";
+                wrapperDiv.style.display = "flex";
+                wrapperDiv.style.justifyContent = "center";
                 canvasContainer.appendChild(wrapperDiv);
 
                 const renderer = new Renderer(wrapperDiv, Renderer.Backends.SVG);
-                renderer.resize(logicalWidth * SCALE, logicalHeight * SCALE);
+                // 使用邏輯尺寸，SVG 透過 CSS max-width: 100% 自動等比縮放
+                renderer.resize(logicalWidth, logicalHeight);
                 const context = renderer.getContext();
                 context.setViewBox(0, 0, logicalWidth, logicalHeight);
 
@@ -643,7 +694,6 @@
                             new StaveConnector(stave, stave).setType(StaveConnector.type.SINGLE_RIGHT).setContext(context).draw();
                         }
 
-                        // 處理 VexFlow 音符轉換 (生成標準有符桿符尾的五線譜音符)
                         function processNotes(dataArr, clefName, trackHand) {
                             let notes = [];
                             
@@ -657,17 +707,14 @@
                             dataArr.forEach(d => {
                                 let vexDur = d.beats === 4 ? "w" : (d.beats === 2 ? "h" : (d.beats === 1 ? "q" : "8"));
                                 
-                                // 定義標準音符鍵值
                                 let keys = [];
                                 if (d.isRest || d.isPlaceholder) {
                                     keys = [getRestKey(clefName, vexDur)];
                                 } else {
-                                    // 計算標準八度 (右手預設 C4, 左手預設 C3)
                                     let baseOctave = clefName === 'treble' ? 4 : 3;
                                     keys = [d.pitch.toLowerCase() + '/' + (baseOctave + d.octave)];
                                 }
                                 
-                                // 生成標準 VexFlow 五線譜音符 (自動生成標準橢圓符頭、符桿)
                                 let note = new StaveNote({ 
                                     keys: keys, 
                                     duration: vexDur + ((d.isRest || d.isPlaceholder) ? "r" : ""), 
@@ -675,29 +722,36 @@
                                     auto_stem: !(d.isRest || d.isPlaceholder) 
                                 });
                                 
-                                // 顏色與游標設定
                                 let isTargetCursor = (currentStep === 2 && currentHand === trackHand && globalCounter === cursorIndex);
                                 
                                 if (d.isPlaceholder) {
-                                    // 佔位符使用淺灰色休止符表示，不會畫成圈圈
                                     note.setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
                                 } else if (!d.isRest) {
-                                    // 填入彩虹顏色，但保留標準音符形狀
                                     note.setStyle({ fillStyle: d.color, strokeStyle: d.color });
                                 }
 
                                 if (isTargetCursor) {
-                                    // 游標指示器
                                     note.setStyle({ fillStyle: '#2563eb', strokeStyle: '#2563eb' });
                                     note.addModifier(new Annotation("▼").setFont("sans-serif", 16).setVerticalJustification(Annotation.VerticalJustify.TOP), 0);
                                 }
 
-                                // 歌詞與指法 (皆置底)
                                 if (d.lyric) {
                                     note.addModifier(new Annotation(d.lyric).setFont("sans-serif", 16, "bold").setVerticalJustification(Annotation.VerticalJustify.BOTTOM), 0);
                                 }
+                                
                                 if (d.fingering) {
-                                    note.addModifier(new Annotation(d.fingering).setFont("sans-serif", 14, "bold").setVerticalJustification(Annotation.VerticalJustify.BOTTOM), 0);
+                                    let isStemUp = true;
+                                    if (!d.isRest && !d.isPlaceholder) {
+                                        let pitchLetter = d.pitch.charAt(0).toUpperCase();
+                                        let oct = (clefName === 'treble' ? 4 : 3) + d.octave;
+                                        if (clefName === 'treble') {
+                                            if (oct > 4 || (oct === 4 && pitchLetter === 'B')) isStemUp = false;
+                                        } else {
+                                            if (oct > 3 || (oct === 3 && ['D','E','F','G','A','B'].includes(pitchLetter))) isStemUp = false;
+                                        }
+                                    }
+                                    let fingerPos = isStemUp ? Annotation.VerticalJustify.TOP : Annotation.VerticalJustify.BOTTOM;
+                                    note.addModifier(new Annotation(d.fingering).setFont("sans-serif", 14, "bold").setVerticalJustification(fingerPos), 0);
                                 }
                                 
                                 notes.push(note);
@@ -720,13 +774,12 @@
                         }
                         
                         if (clefMode === 'grand' || clefMode === 'bass') {
-                            // 暫存游標，因為上下手遍歷順序問題，確保計數器準確
                             let tempCounter = globalCounter; 
                             if(currentHand === 'LH') globalCounter = tempCounter - measureGroup.RH.length; 
                             
                             bNotes = processNotes(measureGroup.LH, 'bass', 'LH');
                             
-                            if(currentHand === 'LH') globalCounter = tempCounter; // 復原
+                            if(currentHand === 'LH') globalCounter = tempCounter; 
 
                             let vBass = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(bNotes);
                             vBass.setStave(clefMode === 'grand' ? staveBass : stave);
@@ -734,7 +787,6 @@
                             beamsBass = Beam.generateBeams(bNotes.filter(n => !n.isRest()));
                         }
 
-                        // 🌟 神級排版魔法：加入「隱形網格」，強制定立絕對平均嘅物理空間
                         let gridNotes = [];
                         for (let b = 0; b < timeBeats; b++) {
                             gridNotes.push(new GhostNote({ duration: "q" }));
@@ -746,7 +798,6 @@
                         let formatter = new Formatter();
                         formatter.joinVoices(voices).formatToStave(voices, stave);
                         
-                        // 繪製
                         if (clefMode === 'grand' || clefMode === 'treble') { voices[0].draw(context, stave); beamsTreble.forEach(b => b.setContext(context).draw()); }
                         if (clefMode === 'grand') { voices[1].draw(context, staveBass); beamsBass.forEach(b => b.setContext(context).draw()); }
                         else if (clefMode === 'bass') { voices[0].draw(context, stave); beamsBass.forEach(b => b.setContext(context).draw()); }
@@ -812,7 +863,6 @@
             renderScore();
         }
 
-        // 初始化
         onLyricsInput();
     </script>
 </body>
