@@ -43,7 +43,7 @@
         .btn-teacher { background: #1e293b; }
         .btn-student { background: #e11d48; }
         .btn-export { background: #059669; }
-        .btn-export-img { background: #0ea5e9; } /* 新增匯出圖片按鈕顏色 */
+        .btn-export-img { background: #0ea5e9; } 
         .btn-play { background: #7c3aed; }
 
         /* 核心兩步切換 */
@@ -165,7 +165,7 @@
         <h1>🎹 鋼琴大譜表 & 彩虹手鈴製譜工作室 (Grand Staff Studio)</h1>
     </div>
 
-    <!-- 頂部通用導航列 (新增匯出圖片按鈕) -->
+    <!-- 頂部通用導航列 -->
     <div class="top-bar">
         <button id="modeBtn" class="btn btn-teacher" onclick="toggleMode()">🧑‍🏫 老師端 Teacher</button>
         <button class="btn btn-play" onclick="playAll()">▶️ 雙手播放 Play</button>
@@ -328,7 +328,6 @@
     </div>
 
     <script>
-        // 初始化 VexFlow 與 Tone.js
         const { Renderer, Stave, StaveNote, Formatter, Dot, Annotation, StaveConnector, Voice, Beam, GhostNote } = Vex.Flow;
         
         let globalSynth = null; 
@@ -856,7 +855,7 @@
             renderScore();
         }
 
-        // 🌟 新增：將樂譜轉為 PNG 圖片下載
+        // 🌟 強效升級版：支援 iOS Safari 嘅高清 PNG 匯出
         function exportImage() {
             const svgs = document.querySelectorAll("#vexflow-canvas svg");
             if (svgs.length === 0) {
@@ -868,13 +867,18 @@
             let maxWidth = 0;
             const svgDataList = [];
 
-            // 收集所有 SVG 的尺寸及資料
+            // 1. 收集所有 SVG 資料，並強制加入 xmlns 屬性 (Safari 必備)
             svgs.forEach(svg => {
                 const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
                 const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
                 
+                let svgString = new XMLSerializer().serializeToString(svg);
+                if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+                
                 svgDataList.push({
-                    svgString: new XMLSerializer().serializeToString(svg),
+                    svgString: svgString,
                     width: width,
                     height: height,
                     yOffset: totalHeight
@@ -886,26 +890,27 @@
 
             const titleEl = document.getElementById('displayTitle');
             const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
-            const titleHeight = titleText ? 70 : 10; // 預留大標題空間
+            const titleHeight = titleText ? 80 : 20; 
             
-            totalHeight += titleHeight;
+            totalHeight += titleHeight + 20; 
 
-            // 建立虛擬畫布
+            // 2. 建立 2 倍放大嘅虛擬畫布，保證高清
+            const exportScale = 2;
             const canvas = document.createElement("canvas");
-            canvas.width = maxWidth + 40; // 左右加少少白邊
-            canvas.height = totalHeight + 40;
+            canvas.width = (maxWidth + 40) * exportScale; 
+            canvas.height = totalHeight * exportScale;
             const ctx = canvas.getContext("2d");
+            ctx.scale(exportScale, exportScale);
 
-            // 鋪上純白背景
+            // 鋪白底與寫標題
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 畫上大標題
             if (titleText) {
                 ctx.fillStyle = "#0f172a";
                 ctx.font = "bold 34px sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText(titleText, canvas.width / 2, 50);
+                ctx.fillText(titleText, (maxWidth + 40) / 2, 50);
             }
 
             let loadedCount = 0;
@@ -915,30 +920,43 @@
                  return;
             }
 
-            // 逐行畫上 SVG 樂譜
+            // 3. 完美避開 Safari Blob 限制，直接用 Base64 轉換 SVG
             svgDataList.forEach((data) => {
                 const img = new Image();
-                const svgBlob = new Blob([data.svgString], { type: "image/svg+xml;charset=utf-8" });
-                const url = URL.createObjectURL(svgBlob);
                 
+                // 將 SVG 文字透過 encodeURIComponent 轉換為 Base64
+                const svg64 = btoa(unescape(encodeURIComponent(data.svgString)));
+                const image64 = 'data:image/svg+xml;base64,' + svg64;
+
                 img.onload = function () {
-                    ctx.drawImage(img, (canvas.width - data.width) / 2, data.yOffset + titleHeight);
-                    URL.revokeObjectURL(url);
+                    ctx.drawImage(img, (maxWidth + 40 - data.width) / 2, data.yOffset + titleHeight);
                     loadedCount++;
                     if (loadedCount === svgDataList.length) {
                         downloadCanvas(canvas);
                     }
                 };
-                img.src = url;
+                img.onerror = function() {
+                    console.error("SVG 轉圖失敗");
+                    loadedCount++;
+                    if (loadedCount === svgDataList.length) downloadCanvas(canvas);
+                };
+                img.src = image64;
             });
 
-            // 觸發下載
+            // 4. 強制觸發下載 (附加落 DOM 呃過 Safari 安全攔截)
             function downloadCanvas(cvs) {
-                const link = document.createElement("a");
-                const fileName = titleText ? titleText : "Clare_Music_Score";
-                link.download = fileName + ".png";
-                link.href = cvs.toDataURL("image/png");
-                link.click();
+                try {
+                    const link = document.createElement("a");
+                    const fileName = titleText ? titleText : "Clare_Music_Score";
+                    link.download = fileName + ".png";
+                    link.href = cvs.toDataURL("image/png", 1.0);
+                    
+                    document.body.appendChild(link); // Safari 必備動作
+                    link.click();
+                    document.body.removeChild(link); // 用完即棄
+                } catch (e) {
+                    alert("瀏覽器安全限制，無法直接下載圖片，請嘗試匯出 PDF。");
+                }
             }
         }
 
