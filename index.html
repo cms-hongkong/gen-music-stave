@@ -152,7 +152,7 @@
         .title-size-L { font-size: 30px; }
         .title-size-XL { font-size: 38px; }
 
-        /* 🌟 列印與 PDF 匯出嘅完美置中排版 */
+        /* 列印與 PDF 匯出嘅完美置中排版 */
         @media print {
             @page { margin: 10mm; size: portrait; }
             body { background: white; padding: 0; margin: 0; }
@@ -165,7 +165,6 @@
                 display: block !important;
             }
             
-            /* 強制區塊置中，避免 Flexbox 喺列印時失效 */
             .vexflow-page {
                 page-break-after: always;
                 display: block !important; 
@@ -174,7 +173,7 @@
             }
             .vexflow-page svg {
                 display: inline-block !important; 
-                margin: 0 auto !important; /* 絕對置中 */
+                margin: 0 auto !important;
             }
             .vexflow-page:last-child {
                 page-break-after: auto;
@@ -350,7 +349,7 @@
     <!-- 學生端互動提示 -->
     <div id="studentControls" class="hidden">
         <p style="font-size: 18px; color: #e11d48; font-weight: bold; margin: 10px 0;">
-            🔔 演奏模式開啟！
+            🔔 演奏模式開啟！點擊音符可發聲。
         </p>
     </div>
 
@@ -384,6 +383,13 @@
 
         let measures = [];
         let clickTargets = []; 
+
+        // 🌟 判斷是否為「全小節休止符」嘅 Helper Function
+        function isVoiceWholeRest(arr) {
+            if (!arr || arr.length === 0) return true;
+            if (arr.length === 1 && arr[0].beats === 4 && (arr[0].isRest || arr[0].isPlaceholder)) return true;
+            return false;
+        }
 
         document.getElementById('scoreArea').addEventListener('click', (e) => {
             if (!isTeacherMode || currentStep !== 2) return;
@@ -676,6 +682,7 @@
             renderScore();
         }
 
+        // 高低音休止符標準座標
         function getRestKey(clef, vexDur) {
             if (clef === 'bass') {
                 return vexDur === 'w' ? "f/3" : "d/3"; 
@@ -704,6 +711,7 @@
                 pages.push(lines.slice(i, i + maxLinesPerPage));
             }
 
+            const SCALE = 1.6; 
             const lineSpacing = clefMode === 'grand' ? 290 : 150;
             const topMargin = 50;
 
@@ -726,7 +734,6 @@
                     if (currentLineWidth > maxLineWidth) maxLineWidth = currentLineWidth;
                 });
 
-                // 🌟 設定邏輯畫布大小，完全符合樂譜實際寬度，保證 100% 置中
                 const logicalWidth = maxLineWidth + 80; 
                 const logicalHeight = Math.max(200, pageLines.length * lineSpacing + topMargin + 40);
 
@@ -784,8 +791,7 @@
                                     keys: [getRestKey(clefName, 'w')], 
                                     duration: "wr", 
                                     clef: clefName, 
-                                    auto_stem: false,
-                                    align_center: true
+                                    auto_stem: false
                                 });
                                 ghost.setStyle({ fillStyle: "transparent", strokeStyle: "transparent" });
                                 notes.push(ghost);
@@ -808,8 +814,7 @@
                                     keys: keys, 
                                     duration: vexDur + ((d.isRest || d.isPlaceholder) ? "r" : ""), 
                                     clef: clefName, 
-                                    auto_stem: !(d.isRest || d.isPlaceholder),
-                                    align_center: (vexDur === 'w' && (d.isRest || d.isPlaceholder)) 
+                                    auto_stem: !(d.isRest || d.isPlaceholder)
                                 });
                                 
                                 note.myHand = trackHand;
@@ -860,14 +865,13 @@
                         }
 
                         let tNotes = [], bNotes = [];
-                        let voices = [];
+                        let vTreble, vBass;
                         let beamsTreble = [], beamsBass = [];
 
                         if (clefMode === 'grand' || clefMode === 'treble') {
                             tNotes = processNotes(measureGroup.RH, 'treble', 'RH');
-                            let vTreble = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(tNotes);
+                            vTreble = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(tNotes);
                             vTreble.setStave(stave);
-                            voices.push(vTreble);
                             beamsTreble = Beam.generateBeams(tNotes.filter(n => !n.isRest()));
                         }
                         
@@ -879,27 +883,37 @@
                             
                             if(currentHand === 'LH') globalCounter = tempCounter; 
 
-                            let vBass = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(bNotes);
+                            vBass = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(bNotes);
                             vBass.setStave(clefMode === 'grand' ? staveBass : stave);
-                            voices.push(vBass);
                             beamsBass = Beam.generateBeams(bNotes.filter(n => !n.isRest()));
                         }
 
+                        // 🌟 獨立排版魔法：為全休止符度身訂造嘅置中排版
                         let gridNotes = [];
                         for (let b = 0; b < timeBeats; b++) {
                             gridNotes.push(new GhostNote({ duration: "q" }));
                         }
                         let gridVoice = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(gridNotes);
                         gridVoice.setStave(stave);
-                        voices.push(gridVoice); 
                         
-                        let formatter = new Formatter();
-                        voices.forEach(v => formatter.joinVoices([v]));
-                        formatter.formatToStave(voices, stave);
-                        
-                        if (clefMode === 'grand' || clefMode === 'treble') { voices[0].draw(context, stave); beamsTreble.forEach(b => b.setContext(context).draw()); }
-                        if (clefMode === 'grand') { voices[1].draw(context, staveBass); beamsBass.forEach(b => b.setContext(context).draw()); }
-                        else if (clefMode === 'bass') { voices[0].draw(context, stave); beamsBass.forEach(b => b.setContext(context).draw()); }
+                        let voicesToJoin = [gridVoice];
+                        if (vTreble && !isVoiceWholeRest(measureGroup.RH)) voicesToJoin.push(vTreble);
+                        if (vBass && !isVoiceWholeRest(measureGroup.LH)) voicesToJoin.push(vBass);
+
+                        // 將有拍子嘅音符連埋隱形網格一齊排，鎖死距離
+                        new Formatter().joinVoices(voicesToJoin).formatToStave(voicesToJoin, stave);
+
+                        // 全小節休止符「獨立排版」，無視網格，直接喺小節中心置中！
+                        if (vTreble && isVoiceWholeRest(measureGroup.RH)) {
+                            new Formatter().joinVoices([vTreble]).formatToStave([vTreble], stave);
+                        }
+                        if (vBass && isVoiceWholeRest(measureGroup.LH)) {
+                            new Formatter().joinVoices([vBass]).formatToStave([vBass], clefMode === 'grand' ? staveBass : stave);
+                        }
+
+                        // 繪製
+                        if (vTreble) { vTreble.draw(context, stave); beamsTreble.forEach(b => b.setContext(context).draw()); }
+                        if (vBass) { vBass.draw(context, clefMode === 'grand' ? staveBass : stave); beamsBass.forEach(b => b.setContext(context).draw()); }
                         
                         if (clefMode === 'grand' || clefMode === 'treble') {
                             tNotes.forEach(note => {
@@ -982,7 +996,7 @@
             renderScore();
         }
 
-        // 🌟 完美多頁 PNG 匯出系統：自動逐頁下載！
+        // 🌟 完美多頁 PNG 匯出系統
         async function exportImage() {
             const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
@@ -1008,17 +1022,14 @@
                 const exportScale = 2;
                 const canvas = document.createElement("canvas");
                 
-                // 加入 40px 白邊，確保呼吸空間
                 canvas.width = (width + 40) * exportScale; 
                 canvas.height = canvasHeight * exportScale;
                 const ctx = canvas.getContext("2d");
                 ctx.scale(exportScale, exportScale);
 
-                // 畫純白底色
                 ctx.fillStyle = "white";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // 只喺第一頁畫標題
                 if (isFirstPage && titleText) {
                     ctx.fillStyle = "#0f172a";
                     ctx.font = "bold 34px sans-serif";
@@ -1031,12 +1042,10 @@
                     svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
                 }
                 
-                // 等待 SVG 渲染落 Canvas
                 await new Promise((resolve) => {
                     const img = new Image();
                     const svg64 = btoa(unescape(encodeURIComponent(svgString)));
                     img.onload = function () {
-                        // 確保 SVG 喺 Canvas 絕對置中 (x 座標偏移 20px)
                         ctx.drawImage(img, 20, titleHeight);
                         resolve();
                     };
@@ -1044,10 +1053,8 @@
                     img.src = 'data:image/svg+xml;base64,' + svg64;
                 });
 
-                // 觸發下載目前呢一頁
                 try {
                     const link = document.createElement("a");
-                    // 🌟 如果有多過一頁，自動加上 "_第X頁" 後綴
                     const fileName = svgs.length > 1 ? `${baseName}_第${i + 1}頁` : baseName;
                     link.download = fileName + ".png";
                     link.href = canvas.toDataURL("image/png", 1.0);
@@ -1059,7 +1066,6 @@
                     alert("瀏覽器安全限制，無法連續下載圖片，請嘗試匯出 PDF。");
                 }
                 
-                // 🌟 暫停 600ms，防止被瀏覽器當做惡意連續彈窗攔截
                 await new Promise(r => setTimeout(r, 600));
             }
         }
