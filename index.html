@@ -43,6 +43,7 @@
         .btn-teacher { background: #1e293b; }
         .btn-student { background: #e11d48; }
         .btn-export { background: #059669; }
+        .btn-export-img { background: #0ea5e9; } /* 新增匯出圖片按鈕顏色 */
         .btn-play { background: #7c3aed; }
 
         /* 核心兩步切換 */
@@ -121,7 +122,7 @@
         .a-blue { background-color: var(--a-blue); color: white; }
         .b-purple { background-color: var(--b-purple); color: white; }
 
-        /* 🌟 樂譜畫布容器 - 升級完美自適應螢幕大小，永不超框 */
+        /* 樂譜畫布容器 */
         .score-area { 
             background: white; border: 2px dashed #cbd5e1; 
             border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 980px;
@@ -129,7 +130,6 @@
             display: flex; flex-direction: column; align-items: center;
         }
         
-        /* 🌟 VexFlow 專屬自適應設定：等比例縮放至容器寬度，免去左右滾動 */
         #vexflow-canvas {
             width: 100%;
             display: flex;
@@ -165,37 +165,38 @@
         <h1>🎹 鋼琴大譜表 & 彩虹手鈴製譜工作室 (Grand Staff Studio)</h1>
     </div>
 
-    <!-- 頂部通用導航列 -->
+    <!-- 頂部通用導航列 (新增匯出圖片按鈕) -->
     <div class="top-bar">
         <button id="modeBtn" class="btn btn-teacher" onclick="toggleMode()">🧑‍🏫 老師端 Teacher</button>
-        <button class="btn btn-play" onclick="playAll()">▶️ 雙手同步播放 Play All</button>
-        <button class="btn btn-export" onclick="window.print()">📄 匯出 Export PDF</button>
+        <button class="btn btn-play" onclick="playAll()">▶️ 雙手播放 Play</button>
+        <button class="btn btn-export" onclick="window.print()">📄 匯出 PDF</button>
+        <button class="btn btn-export-img" onclick="exportImage()">🖼️ 匯出圖片</button>
 
         <div class="control-group" style="background: white;">
-            <label>譜表模式:</label>
+            <label>譜表:</label>
             <select id="staffModeSelect" onchange="renderScore()">
-                <option value="grand" selected>鋼琴大譜表 (Grand Staff 𝄞+𝄢)</option>
-                <option value="treble">單行高音譜號 (Treble 𝄞)</option>
-                <option value="bass">單行低音譜號 (Bass 𝄢)</option>
+                <option value="grand" selected>大譜表 (𝄞+𝄢)</option>
+                <option value="treble">單高音 (𝄞)</option>
+                <option value="bass">單低音 (𝄢)</option>
             </select>
         </div>
 
         <div class="control-group" style="background: white;">
             <label>拍號:</label>
             <select id="timeSigSelect" onchange="onLyricsInput()">
-                <option value="4/4" selected>4/4 拍</option>
-                <option value="3/4">3/4 拍</option>
-                <option value="2/4">2/4 拍</option>
+                <option value="4/4" selected>4/4</option>
+                <option value="3/4">3/4</option>
+                <option value="2/4">2/4</option>
             </select>
         </div>
         
         <div class="control-group" style="background: white;">
-            <label>行數/頁:</label>
+            <label>行/頁:</label>
             <select id="linesPerPageSelect" onchange="renderScore()">
-                <option value="3">3 行</option>
-                <option value="4">4 行</option>
-                <option value="5" selected>5 行</option>
-                <option value="6">6 行</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5" selected>5</option>
+                <option value="6">6</option>
             </select>
         </div>
     </div>
@@ -247,7 +248,7 @@
         <div class="control-row" style="width: 100%; max-width: 680px;">
             <div style="display:flex; flex-direction:column; width: 100%; text-align:left;">
                 <label style="font-size:12px; font-weight:bold; color:#475569; margin-bottom:4px;">
-                    📝 輸入完整歌詞（自動生成嚴格對齊的 1 拍佔位符）：
+                    📝 輸入完整歌詞（自動生成嚴格對齊的佔位符）：
                 </label>
                 <textarea id="fullLyricsInput" style="height:65px; width:100%; font-size:14px;" placeholder="例: 瑪莉有隻小綿羊 (💡 如不需要歌詞，可直接略過此步入音階)" oninput="onLyricsInput()"></textarea>
             </div>
@@ -343,12 +344,11 @@
         let currentHand = 'RH'; 
         let isPlayingAll = false;
         
-        let cursorIndex = 0; // 追蹤輸入位置
+        let cursorIndex = 0; 
         let currentBeat = 1;
         let currentFingering = '';
-        let currentOctave = 0; // 0 = 中音(C4), 1 = 高音, -1 = 低音
+        let currentOctave = 0; 
 
-        // 系統資料結構：基於歌詞生成小節，每個小節有左右手陣列
         let measures = [];
 
         window.addEventListener('keydown', (e) => {
@@ -414,8 +414,8 @@
             currentHand = hand;
             document.getElementById('btnRH').className = 'hand-toggle-btn ' + (hand === 'RH' ? 'hand-active-rh' : '');
             document.getElementById('btnLH').className = 'hand-toggle-btn ' + (hand === 'LH' ? 'hand-active-lh' : '');
-            if (hand === 'LH') setOctave(-1); // 左手預設低音
-            else setOctave(0); // 右手預設中音
+            if (hand === 'LH') setOctave(-1); 
+            else setOctave(0); 
             cursorIndex = 0;
             renderScore();
         }
@@ -433,7 +433,6 @@
             }
         }
 
-        // 根據歌詞自動生成小節與佔位符
         function onLyricsInput() {
             const raw = document.getElementById('fullLyricsInput').value;
             const timeSigVal = document.getElementById('timeSigSelect').value;
@@ -486,12 +485,10 @@
             if (isRest || baseFreq === 0) return;
             await Tone.start();
             let synth = getSynth();
-            
             let durStr = beats === 4 ? "1n" : (beats === 2 ? "2n" : (beats === 1 ? "4n" : "8n"));
             synth.triggerAttackRelease(baseFreq * Math.pow(2, octaveIndex), durStr);
         }
 
-        // 處理虛擬鍵盤或實體鍵盤輸入
         function processInput(baseFreq, solfege, pitch, num, colorHex, isRest) {
             playTone(baseFreq, currentOctave, currentBeat, isRest);
 
@@ -502,7 +499,6 @@
                 });
             });
 
-            // 自動無限增加新小節
             if (cursorIndex >= allSlots.length) {
                 const timeSigVal = document.getElementById('timeSigSelect').value;
                 const maxBeats = parseInt(timeSigVal.split('/')[0]);
@@ -600,7 +596,6 @@
             }
         }
 
-        // VexFlow 完美渲染引擎
         function renderScore() {
             const canvasContainer = document.getElementById("vexflow-canvas");
             canvasContainer.innerHTML = ""; 
@@ -647,14 +642,12 @@
 
                 let wrapperDiv = document.createElement("div");
                 wrapperDiv.style.marginBottom = "20px";
-                // 🌟 確保 wrapperDiv 可以佔滿 100% 寬度並居中，配合 CSS 嘅完美自適應
                 wrapperDiv.style.width = "100%";
                 wrapperDiv.style.display = "flex";
                 wrapperDiv.style.justifyContent = "center";
                 canvasContainer.appendChild(wrapperDiv);
 
                 const renderer = new Renderer(wrapperDiv, Renderer.Backends.SVG);
-                // 使用邏輯尺寸，SVG 透過 CSS max-width: 100% 自動等比縮放
                 renderer.resize(logicalWidth, logicalHeight);
                 const context = renderer.getContext();
                 context.setViewBox(0, 0, logicalWidth, logicalHeight);
@@ -861,6 +854,92 @@
                 student.classList.remove('hidden');
             }
             renderScore();
+        }
+
+        // 🌟 新增：將樂譜轉為 PNG 圖片下載
+        function exportImage() {
+            const svgs = document.querySelectorAll("#vexflow-canvas svg");
+            if (svgs.length === 0) {
+                alert("沒有樂譜可以匯出！");
+                return;
+            }
+
+            let totalHeight = 0;
+            let maxWidth = 0;
+            const svgDataList = [];
+
+            // 收集所有 SVG 的尺寸及資料
+            svgs.forEach(svg => {
+                const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
+                const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
+                
+                svgDataList.push({
+                    svgString: new XMLSerializer().serializeToString(svg),
+                    width: width,
+                    height: height,
+                    yOffset: totalHeight
+                });
+                
+                totalHeight += height;
+                if (width > maxWidth) maxWidth = width;
+            });
+
+            const titleEl = document.getElementById('displayTitle');
+            const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
+            const titleHeight = titleText ? 70 : 10; // 預留大標題空間
+            
+            totalHeight += titleHeight;
+
+            // 建立虛擬畫布
+            const canvas = document.createElement("canvas");
+            canvas.width = maxWidth + 40; // 左右加少少白邊
+            canvas.height = totalHeight + 40;
+            const ctx = canvas.getContext("2d");
+
+            // 鋪上純白背景
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 畫上大標題
+            if (titleText) {
+                ctx.fillStyle = "#0f172a";
+                ctx.font = "bold 34px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(titleText, canvas.width / 2, 50);
+            }
+
+            let loadedCount = 0;
+
+            if (svgDataList.length === 0 && titleText) {
+                 downloadCanvas(canvas);
+                 return;
+            }
+
+            // 逐行畫上 SVG 樂譜
+            svgDataList.forEach((data) => {
+                const img = new Image();
+                const svgBlob = new Blob([data.svgString], { type: "image/svg+xml;charset=utf-8" });
+                const url = URL.createObjectURL(svgBlob);
+                
+                img.onload = function () {
+                    ctx.drawImage(img, (canvas.width - data.width) / 2, data.yOffset + titleHeight);
+                    URL.revokeObjectURL(url);
+                    loadedCount++;
+                    if (loadedCount === svgDataList.length) {
+                        downloadCanvas(canvas);
+                    }
+                };
+                img.src = url;
+            });
+
+            // 觸發下載
+            function downloadCanvas(cvs) {
+                const link = document.createElement("a");
+                const fileName = titleText ? titleText : "Clare_Music_Score";
+                link.download = fileName + ".png";
+                link.href = cvs.toDataURL("image/png");
+                link.click();
+            }
         }
 
         onLyricsInput();
