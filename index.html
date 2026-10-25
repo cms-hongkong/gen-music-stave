@@ -24,7 +24,7 @@
         body { 
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, "PingFang HK", "Microsoft JhengHei", sans-serif; 
             text-align: center; background-color: #f1f5f9; padding: 12px; margin: 0; color: #1e293b;
-            user-select: none; /* 防止篤錯反白文字 */
+            user-select: none; 
         }
 
         .header { margin-bottom: 8px; }
@@ -129,7 +129,7 @@
             border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 980px;
             padding: 30px 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.04);
             display: flex; flex-direction: column; align-items: center;
-            cursor: pointer; /* 提示成個樂譜都可以點擊 */
+            cursor: pointer;
         }
         
         #vexflow-canvas {
@@ -152,11 +152,33 @@
         .title-size-L { font-size: 30px; }
         .title-size-XL { font-size: 38px; }
 
+        /* 🌟 列印與 PDF 匯出嘅完美置中排版 */
         @media print {
-            @page { margin: 8mm; size: portrait; }
-            body { background: white; padding: 0; }
+            @page { margin: 10mm; size: portrait; }
+            body { background: white; padding: 0; margin: 0; }
             .header, .top-bar, .workflow-tabs, .panel-box, #keyboardArea, #studentControls, .bell-guide-container { display: none !important; }
-            .score-area { border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; cursor: default; }
+            
+            .score-area { 
+                border: none !important; box-shadow: none !important; 
+                width: 100% !important; max-width: 100% !important; 
+                padding: 0 !important; cursor: default; 
+                display: block !important;
+            }
+            
+            /* 強制區塊置中，避免 Flexbox 喺列印時失效 */
+            .vexflow-page {
+                page-break-after: always;
+                display: block !important; 
+                text-align: center !important; 
+                width: 100% !important;
+            }
+            .vexflow-page svg {
+                display: inline-block !important; 
+                margin: 0 auto !important; /* 絕對置中 */
+            }
+            .vexflow-page:last-child {
+                page-break-after: auto;
+            }
         }
     </style>
 </head>
@@ -361,23 +383,20 @@
         let currentOctave = 0; 
 
         let measures = [];
-        
-        // 🌟 記錄所有音符嘅畫面座標，用作「智能吸附」
-        let clickTargets = [];
+        let clickTargets = []; 
 
-        // 🌟 神級 SVG 智能吸附 (Smart Snap) 系統
         document.getElementById('scoreArea').addEventListener('click', (e) => {
             if (!isTeacherMode || currentStep !== 2) return;
             
-            let svg = document.querySelector('#vexflow-canvas svg');
-            if (!svg) return;
+            let svgWrapper = e.target.closest('.vexflow-page');
+            if (!svgWrapper) return; 
+            
+            let svg = svgWrapper.querySelector('svg');
+            let pageIndex = parseInt(svgWrapper.dataset.pageIndex);
 
-            // 獲取滑鼠/手指喺螢幕上嘅座標
             let pt = svg.createSVGPoint();
             pt.x = e.clientX;
             pt.y = e.clientY;
-
-            // 轉換為 VexFlow 內部嘅 SVG 邏輯座標 (完美解決縮放問題)
             let ctm = svg.getScreenCTM();
             if (!ctm) return;
             let svgP = pt.matrixTransform(ctm.inverse());
@@ -385,8 +404,9 @@
             let closest = null;
             let minDist = Infinity;
 
-            // 掃描所有音符，搵出距離點擊位置最近嘅音符
             clickTargets.forEach(target => {
+                if (target.page !== pageIndex) return; 
+                
                 let dx = target.x - svgP.x;
                 let dy = target.y - svgP.y;
                 let dist = Math.sqrt(dx*dx + dy*dy);
@@ -396,7 +416,6 @@
                 }
             });
 
-            // 如果點擊位置 150px (大約半個小節) 範圍內有音符，就將游標吸過去
             if (closest && minDist < 150) {
                 currentHand = closest.hand;
                 document.getElementById('btnRH').className = 'hand-toggle-btn ' + (closest.hand === 'RH' ? 'hand-active-rh' : '');
@@ -668,7 +687,7 @@
         function renderScore() {
             const canvasContainer = document.getElementById("vexflow-canvas");
             canvasContainer.innerHTML = ""; 
-            clickTargets = []; // 🌟 每次 Render 都清空並重新計算座標
+            clickTargets = []; 
 
             const clefMode = document.getElementById("staffModeSelect").value;
             const timeSigStr = document.getElementById("timeSigSelect").value;
@@ -685,7 +704,6 @@
                 pages.push(lines.slice(i, i + maxLinesPerPage));
             }
 
-            const SCALE = 1.6; 
             const lineSpacing = clefMode === 'grand' ? 290 : 150;
             const topMargin = 50;
 
@@ -708,14 +726,14 @@
                     if (currentLineWidth > maxLineWidth) maxLineWidth = currentLineWidth;
                 });
 
-                const logicalWidth = Math.max(850, maxLineWidth + 80); 
+                // 🌟 設定邏輯畫布大小，完全符合樂譜實際寬度，保證 100% 置中
+                const logicalWidth = maxLineWidth + 80; 
                 const logicalHeight = Math.max(200, pageLines.length * lineSpacing + topMargin + 40);
 
                 let wrapperDiv = document.createElement("div");
-                wrapperDiv.style.marginBottom = "20px";
-                wrapperDiv.style.width = "100%";
-                wrapperDiv.style.display = "flex";
-                wrapperDiv.style.justifyContent = "center";
+                wrapperDiv.className = "vexflow-page";
+                wrapperDiv.dataset.pageIndex = pageIndex;
+                wrapperDiv.style.marginBottom = "40px";
                 canvasContainer.appendChild(wrapperDiv);
 
                 const renderer = new Renderer(wrapperDiv, Renderer.Backends.SVG);
@@ -794,7 +812,6 @@
                                     align_center: (vexDur === 'w' && (d.isRest || d.isPlaceholder)) 
                                 });
                                 
-                                // 🌟 綁定內部數據，方便後續抽取座標
                                 note.myHand = trackHand;
                                 note.myIndex = (trackHand === 'RH') ? indexRH : indexLH;
 
@@ -803,7 +820,7 @@
                                 }
 
                                 let isTargetCursor = (currentStep === 2 && currentHand === trackHand && note.myIndex === cursorIndex);
-                                
+
                                 if (d.isPlaceholder) {
                                     note.setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
                                 } else if (!d.isRest) {
@@ -855,7 +872,13 @@
                         }
                         
                         if (clefMode === 'grand' || clefMode === 'bass') {
+                            let tempCounter = globalCounter; 
+                            if(currentHand === 'LH') globalCounter = tempCounter - measureGroup.RH.length; 
+                            
                             bNotes = processNotes(measureGroup.LH, 'bass', 'LH');
+                            
+                            if(currentHand === 'LH') globalCounter = tempCounter; 
+
                             let vBass = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(bNotes);
                             vBass.setStave(clefMode === 'grand' ? staveBass : stave);
                             voices.push(vBass);
@@ -878,11 +901,10 @@
                         if (clefMode === 'grand') { voices[1].draw(context, staveBass); beamsBass.forEach(b => b.setContext(context).draw()); }
                         else if (clefMode === 'bass') { voices[0].draw(context, stave); beamsBass.forEach(b => b.setContext(context).draw()); }
                         
-                        // 🌟 排版後，自動儲存每個音符嘅絕對座標入雷達網！
                         if (clefMode === 'grand' || clefMode === 'treble') {
                             tNotes.forEach(note => {
                                 if (note.myHand) {
-                                    clickTargets.push({ hand: note.myHand, index: note.myIndex, x: note.getAbsoluteX(), y: stave.getYForLine(2) });
+                                    clickTargets.push({ hand: note.myHand, index: note.myIndex, page: pageIndex, x: note.getAbsoluteX(), y: stave.getYForLine(2) });
                                 }
                             });
                         }
@@ -890,7 +912,7 @@
                             let targetStave = clefMode === 'grand' ? staveBass : stave;
                             bNotes.forEach(note => {
                                 if (note.myHand) {
-                                    clickTargets.push({ hand: note.myHand, index: note.myIndex, x: note.getAbsoluteX(), y: targetStave.getYForLine(2) });
+                                    clickTargets.push({ hand: note.myHand, index: note.myIndex, page: pageIndex, x: note.getAbsoluteX(), y: targetStave.getYForLine(2) });
                                 }
                             });
                         }
@@ -960,101 +982,85 @@
             renderScore();
         }
 
-        function exportImage() {
-            const svgs = document.querySelectorAll("#vexflow-canvas svg");
+        // 🌟 完美多頁 PNG 匯出系統：自動逐頁下載！
+        async function exportImage() {
+            const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
                 alert("沒有樂譜可以匯出！");
                 return;
             }
 
-            let totalHeight = 0;
-            let maxWidth = 0;
-            const svgDataList = [];
+            const titleEl = document.getElementById('displayTitle');
+            const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
+            const baseName = titleText ? titleText : "Clare_Music_Score";
 
-            svgs.forEach(svg => {
+            // 逐頁獨立繪製與下載
+            for (let i = 0; i < svgs.length; i++) {
+                const svg = svgs[i];
+                const isFirstPage = (i === 0);
+                
                 const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
                 const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
                 
+                const titleHeight = (isFirstPage && titleText) ? 80 : 20; 
+                const canvasHeight = height + titleHeight + 20; 
+
+                const exportScale = 2;
+                const canvas = document.createElement("canvas");
+                
+                // 加入 40px 白邊，確保呼吸空間
+                canvas.width = (width + 40) * exportScale; 
+                canvas.height = canvasHeight * exportScale;
+                const ctx = canvas.getContext("2d");
+                ctx.scale(exportScale, exportScale);
+
+                // 畫純白底色
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 只喺第一頁畫標題
+                if (isFirstPage && titleText) {
+                    ctx.fillStyle = "#0f172a";
+                    ctx.font = "bold 34px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(titleText, (width + 40) / 2, 50);
+                }
+
                 let svgString = new XMLSerializer().serializeToString(svg);
                 if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
                     svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
                 }
                 
-                svgDataList.push({
-                    svgString: svgString,
-                    width: width,
-                    height: height,
-                    yOffset: totalHeight
+                // 等待 SVG 渲染落 Canvas
+                await new Promise((resolve) => {
+                    const img = new Image();
+                    const svg64 = btoa(unescape(encodeURIComponent(svgString)));
+                    img.onload = function () {
+                        // 確保 SVG 喺 Canvas 絕對置中 (x 座標偏移 20px)
+                        ctx.drawImage(img, 20, titleHeight);
+                        resolve();
+                    };
+                    img.onerror = resolve;
+                    img.src = 'data:image/svg+xml;base64,' + svg64;
                 });
-                
-                totalHeight += height;
-                if (width > maxWidth) maxWidth = width;
-            });
 
-            const titleEl = document.getElementById('displayTitle');
-            const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
-            const titleHeight = titleText ? 80 : 20; 
-            
-            totalHeight += titleHeight + 20; 
-
-            const exportScale = 2;
-            const canvas = document.createElement("canvas");
-            canvas.width = (maxWidth + 40) * exportScale; 
-            canvas.height = totalHeight * exportScale;
-            const ctx = canvas.getContext("2d");
-            ctx.scale(exportScale, exportScale);
-
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            if (titleText) {
-                ctx.fillStyle = "#0f172a";
-                ctx.font = "bold 34px sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText(titleText, (maxWidth + 40) / 2, 50);
-            }
-
-            let loadedCount = 0;
-
-            if (svgDataList.length === 0 && titleText) {
-                 downloadCanvas(canvas);
-                 return;
-            }
-
-            svgDataList.forEach((data) => {
-                const img = new Image();
-                
-                const svg64 = btoa(unescape(encodeURIComponent(data.svgString)));
-                const image64 = 'data:image/svg+xml;base64,' + svg64;
-
-                img.onload = function () {
-                    ctx.drawImage(img, (maxWidth + 40 - data.width) / 2, data.yOffset + titleHeight);
-                    loadedCount++;
-                    if (loadedCount === svgDataList.length) {
-                        downloadCanvas(canvas);
-                    }
-                };
-                img.onerror = function() {
-                    console.error("SVG 轉圖失敗");
-                    loadedCount++;
-                    if (loadedCount === svgDataList.length) downloadCanvas(canvas);
-                };
-                img.src = image64;
-            });
-
-            function downloadCanvas(cvs) {
+                // 觸發下載目前呢一頁
                 try {
                     const link = document.createElement("a");
-                    const fileName = titleText ? titleText : "Clare_Music_Score";
+                    // 🌟 如果有多過一頁，自動加上 "_第X頁" 後綴
+                    const fileName = svgs.length > 1 ? `${baseName}_第${i + 1}頁` : baseName;
                     link.download = fileName + ".png";
-                    link.href = cvs.toDataURL("image/png", 1.0);
+                    link.href = canvas.toDataURL("image/png", 1.0);
                     
                     document.body.appendChild(link); 
                     link.click();
                     document.body.removeChild(link); 
                 } catch (e) {
-                    alert("瀏覽器安全限制，無法直接下載圖片，請嘗試匯出 PDF。");
+                    alert("瀏覽器安全限制，無法連續下載圖片，請嘗試匯出 PDF。");
                 }
+                
+                // 🌟 暫停 600ms，防止被瀏覽器當做惡意連續彈窗攔截
+                await new Promise(r => setTimeout(r, 600));
             }
         }
 
