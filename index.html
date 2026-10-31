@@ -349,7 +349,7 @@
     <!-- 學生端互動提示 -->
     <div id="studentControls" class="hidden">
         <p style="font-size: 18px; color: #e11d48; font-weight: bold; margin: 10px 0;">
-            🔔 演奏模式開啟！
+            🔔 演奏模式開啟！點擊音符可發聲。
         </p>
     </div>
 
@@ -384,7 +384,6 @@
         let measures = [];
         let clickTargets = []; 
 
-        // 🌟 判斷是否為「全小節休止符」
         function isVoiceWholeRest(arr) {
             if (!arr || arr.length === 0) return true;
             if (arr.length === 1 && (arr[0].beats === 4 || arr[0].beats === 3) && (arr[0].isRest || arr[0].isPlaceholder)) return true;
@@ -789,8 +788,7 @@
                                     keys: [getRestKey(clefName, 'w')], 
                                     duration: "wr", 
                                     clef: clefName, 
-                                    auto_stem: false,
-                                    align_center: true
+                                    auto_stem: false
                                 });
                                 ghost.setStyle({ fillStyle: "transparent", strokeStyle: "transparent" });
                                 notes.push(ghost);
@@ -901,18 +899,22 @@
                         let gridVoice = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(gridNotes);
                         gridVoice.setStave(stave);
                         
-                        // 🌟 安全分離排版邏輯，避免 VexFlow 撞車
                         let isTrebleWhole = isVoiceWholeRest(measureGroup.RH);
                         let isBassWhole = isVoiceWholeRest(measureGroup.LH);
 
-                        let voicesToJoin = [gridVoice];
-                        if (vTreble && !isTrebleWhole) voicesToJoin.push(vTreble);
-                        if (vBass && !isBassWhole) voicesToJoin.push(vBass);
+                        // 先將所有需要對齊網格嘅 Voices 加入 Formatter
+                        let formatter = new Formatter();
+                        if (vTreble && !isTrebleWhole) formatter.joinVoices([vTreble]);
+                        if (vBass && !isBassWhole) formatter.joinVoices([vBass]);
+                        formatter.joinVoices([gridVoice]);
+                        
+                        // 統一排版
+                        let voicesToFormat = [gridVoice];
+                        if (vTreble && !isTrebleWhole) voicesToFormat.push(vTreble);
+                        if (vBass && !isBassWhole) voicesToFormat.push(vBass);
+                        formatter.formatToStave(voicesToFormat, stave);
 
-                        // 處理正常音符（跟隨網格間距）
-                        new Formatter().joinVoices(voicesToJoin).formatToStave(voicesToJoin, stave);
-
-                        // 處理全小節休止符（無條件置中）
+                        // 獨立排版全休止符（無條件置中）
                         if (vTreble && isTrebleWhole) {
                             new Formatter().joinVoices([vTreble]).formatToStave([vTreble], stave);
                         }
@@ -920,11 +922,9 @@
                             new Formatter().joinVoices([vBass]).formatToStave([vBass], clefMode === 'grand' ? staveBass : stave);
                         }
                         
-                        // 繪製結果
                         if (vTreble) { vTreble.draw(context, stave); beamsTreble.forEach(b => b.setContext(context).draw()); }
                         if (vBass) { vBass.draw(context, clefMode === 'grand' ? staveBass : stave); beamsBass.forEach(b => b.setContext(context).draw()); }
                         
-                        // 紀錄座標供點擊
                         if (clefMode === 'grand' || clefMode === 'treble') {
                             tNotes.forEach(note => {
                                 if (note.myHand) {
@@ -1017,7 +1017,6 @@
             const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
             const baseName = titleText ? titleText : "Clare_Music_Score";
 
-            // 逐頁獨立繪製與下載
             for (let i = 0; i < svgs.length; i++) {
                 const svg = svgs[i];
                 const isFirstPage = (i === 0);
