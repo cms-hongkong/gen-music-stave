@@ -999,6 +999,7 @@
             renderScore();
         }
 
+        // --- 全新 iOS 相容匯出機制 ---
         async function exportImage() {
             const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
@@ -1009,17 +1010,17 @@
             const titleEl = document.getElementById('displayTitle');
             const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
             const baseName = titleText ? titleText : "Clare_Music_Score";
-
-            const exportScale = 2;
+            const exportScale = 2; // 高畫質
             
             let totalHeight = (titleText ? 80 : 20); 
             let maxWidth = 0;
             let pageHeights = [];
             
+            // 1. 強制計算並寫入尺寸，防止 iOS 渲染異常
             for (let i = 0; i < svgs.length; i++) {
                 const svg = svgs[i];
-                const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
-                const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
+                const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width || 800;
+                const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height || 1000;
                 if (width > maxWidth) maxWidth = width;
                 pageHeights.push(height);
                 totalHeight += height + 20; 
@@ -1043,43 +1044,114 @@
 
             let currentY = titleText ? 80 : 20;
 
+            // 2. 將 SVG 轉化並畫到 Canvas 上
             for (let i = 0; i < svgs.length; i++) {
-                const svg = svgs[i];
+                const originalSvg = svgs[i];
+                const svg = originalSvg.cloneNode(true); // 複製節點以免改動到畫面
+                
+                const w = parseInt(originalSvg.getAttribute("width")) || originalSvg.getBoundingClientRect().width || 800;
+                const h = parseInt(originalSvg.getAttribute("height")) || originalSvg.getBoundingClientRect().height || 1000;
+                svg.setAttribute("width", w);
+                svg.setAttribute("height", h);
+
                 let svgString = new XMLSerializer().serializeToString(svg);
                 if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
                     svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
                 }
                 
-                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
+                // 使用 UTF-8 相容的 Base64 轉換方式（iOS 最穩定寫法）
+                const b64 = btoa(unescape(encodeURIComponent(svgString)));
+                const dataUrl = 'data:image/svg+xml;base64,' + b64;
 
                 await new Promise((resolve) => {
                     const img = new Image();
                     img.onload = function () {
                         ctx.drawImage(img, 20, currentY);
-                        URL.revokeObjectURL(url); 
                         resolve();
                     };
-                    img.onerror = function() {
-                        URL.revokeObjectURL(url);
-                        resolve();
-                    };
-                    img.src = url;
+                    img.onerror = resolve; // 失敗時跳過不卡死
+                    img.src = dataUrl;
                 });
 
                 currentY += pageHeights[i] + 20;
             }
 
+            const finalDataUrl = canvas.toDataURL("image/png", 1.0);
+
+            // 3. 電腦版嘗試直接下載
             try {
                 const link = document.createElement("a");
                 link.download = baseName + ".png";
-                link.href = canvas.toDataURL("image/png", 1.0);
+                link.href = finalDataUrl;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             } catch (e) {
-                alert("圖片產生失敗，可能是樂譜過長導致畫布超載。這種情況請使用「匯出 PDF」。");
+                // 忽略錯誤，交給下方的預覽彈出視窗處理
             }
+
+            // 4. 手機版強制彈出預覽讓使用者「長按儲存」（完美破解 Safari 攔截）
+            showExportModal(finalDataUrl);
+        }
+
+        // --- 全螢幕預覽彈出視窗 (專門針對手機長按下載) ---
+        function showExportModal(dataUrl) {
+            const overlay = document.createElement("div");
+            overlay.style.position = "fixed";
+            overlay.style.top = "0";
+            overlay.style.left = "0";
+            overlay.style.width = "100vw";
+            overlay.style.height = "100vh";
+            overlay.style.backgroundColor = "rgba(0,0,0,0.9)";
+            overlay.style.zIndex = "9999";
+            overlay.style.display = "flex";
+            overlay.style.flexDirection = "column";
+            overlay.style.alignItems = "center";
+            overlay.style.justifyContent = "center";
+            
+            const hint = document.createElement("div");
+            hint.innerHTML = "✅ 圖片已產生！<br><span style='font-size:15px; color:#fbbf24;'>👉 請 <b>長按下方圖片</b>，並選擇「儲存圖片」或「分享」</span>";
+            hint.style.color = "white";
+            hint.style.fontSize = "20px";
+            hint.style.fontWeight = "bold";
+            hint.style.textAlign = "center";
+            hint.style.margin = "30px 0 15px 0";
+            hint.style.lineHeight = "1.6";
+            
+            const closeBtn = document.createElement("button");
+            closeBtn.innerText = "✖ 關閉並回到編輯";
+            closeBtn.style.padding = "10px 24px";
+            closeBtn.style.fontSize = "16px";
+            closeBtn.style.fontWeight = "bold";
+            closeBtn.style.color = "white";
+            closeBtn.style.backgroundColor = "#ef4444";
+            closeBtn.style.border = "none";
+            closeBtn.style.borderRadius = "24px";
+            closeBtn.style.cursor = "pointer";
+            closeBtn.style.marginBottom = "20px";
+            closeBtn.style.boxShadow = "0 4px 10px rgba(239, 68, 68, 0.4)";
+            closeBtn.onclick = () => document.body.removeChild(overlay);
+            
+            const imgWrapper = document.createElement("div");
+            imgWrapper.style.flex = "1";
+            imgWrapper.style.overflow = "auto";
+            imgWrapper.style.width = "90%";
+            imgWrapper.style.maxWidth = "800px";
+            imgWrapper.style.marginBottom = "30px";
+            imgWrapper.style.backgroundColor = "white";
+            imgWrapper.style.borderRadius = "12px";
+            
+            const img = document.createElement("img");
+            img.src = dataUrl;
+            img.style.width = "100%";
+            img.style.display = "block";
+            
+            imgWrapper.appendChild(img);
+            overlay.appendChild(hint);
+            overlay.appendChild(closeBtn);
+            overlay.appendChild(imgWrapper);
+            
+            document.body.appendChild(overlay);
         }
 
         onLyricsInput();
