@@ -46,8 +46,6 @@
         .btn-export { background: #059669; }
         .btn-export-img { background: #0ea5e9; } 
         .btn-play { background: #7c3aed; }
-        
-        /* 備份按鈕專屬顏色 */
         .btn-save { background: #f59e0b; }
         .btn-load { background: #3b82f6; }
 
@@ -156,10 +154,21 @@
         .title-size-L { font-size: 30px; }
         .title-size-XL { font-size: 38px; }
 
-        /* 列印與 PDF 匯出嘅完美置中排版 */
+        /* 列印與 PDF 匯出優化 (完美置中且不被切斷) */
         @media print {
-            @page { margin: 10mm; size: portrait; }
-            body { background: white; padding: 0; margin: 0; }
+            /* 強制設定為 A4 尺寸，並加入適當邊界 */
+            @page { 
+                size: A4 portrait; 
+                margin: 15mm 10mm; 
+            }
+            body { 
+                background: white; 
+                padding: 0; 
+                margin: 0; 
+                /* 確保背景顏色或圖片被列印出來 (適用於某些瀏覽器設定) */
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
             .header, .top-bar, .workflow-tabs, .panel-box, #keyboardArea, #studentControls, .bell-guide-container { display: none !important; }
             
             .score-area { 
@@ -170,14 +179,20 @@
             }
             
             .vexflow-page {
-                page-break-after: always;
+                page-break-after: always; /* 確保每一頁後都會換頁 */
+                page-break-inside: avoid; /* 避免在頁面中間被切斷 */
                 display: block !important; 
                 text-align: center !important; 
+                /* 強制縮放以適應 A4 寬度，避免超出邊界 */
                 width: 100% !important;
+                max-height: 100vh !important; 
             }
             .vexflow-page svg {
                 display: inline-block !important; 
                 margin: 0 auto !important;
+                /* 確保 SVG 內容會根據容器自動縮放 */
+                max-width: 100% !important;
+                height: auto !important;
             }
             .vexflow-page:last-child {
                 page-break-after: auto;
@@ -199,10 +214,8 @@
         <button class="btn btn-export" onclick="window.print()">📄 匯出 PDF</button>
         <button class="btn btn-export-img" onclick="exportImage()">🖼️ 匯出圖片</button>
         
-        <!-- 新增備份與載入功能 -->
         <button class="btn btn-save" onclick="saveBackup()">💾 儲存備份</button>
         <button class="btn btn-load" onclick="document.getElementById('backupInput').click()">📂 載入備份</button>
-        <!-- 隱藏的檔案上傳輸入框 -->
         <input type="file" id="backupInput" accept=".json" style="display: none;" onchange="loadBackup(event)">
 
         <div class="control-group" style="background: white;">
@@ -1009,6 +1022,7 @@
             renderScore();
         }
 
+        // --- 全新分頁匯出機制 ---
         async function exportImage() {
             const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
@@ -1016,88 +1030,91 @@
                 return;
             }
 
-            const titleEl = document.getElementById('displayTitle');
-            const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
-            const baseName = titleText ? titleText : "Clare_Music_Score";
-            const exportScale = 2; 
-            
-            let totalHeight = (titleText ? 80 : 20); 
-            let maxWidth = 0;
-            let pageHeights = [];
-            
-            for (let i = 0; i < svgs.length; i++) {
-                const svg = svgs[i];
-                const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width || 800;
-                const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height || 1000;
-                if (width > maxWidth) maxWidth = width;
-                pageHeights.push(height);
-                totalHeight += height + 20; 
+            // 如果只有一頁，直接匯出
+            if (svgs.length === 1) {
+                generateAndShowImage(0);
+                return;
             }
 
+            // 如果有多頁，先讓使用者選擇要匯出哪一頁
+            let pageNum = prompt(`這份樂譜共有 ${svgs.length} 頁。\n請輸入你想匯出的頁碼 (1 到 ${svgs.length})：`, "1");
+            
+            if (pageNum === null) return; // 取消
+            
+            pageNum = parseInt(pageNum);
+            if (isNaN(pageNum) || pageNum < 1 || pageNum > svgs.length) {
+                alert("請輸入有效的頁碼！");
+                return;
+            }
+            
+            generateAndShowImage(pageNum - 1);
+        }
+
+        async function generateAndShowImage(pageIndex) {
+            const svgs = document.querySelectorAll(".vexflow-page svg");
+            const svg = svgs[pageIndex];
+            const isFirstPage = (pageIndex === 0);
+            
+            const titleEl = document.getElementById('displayTitle');
+            const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
+            
+            const exportScale = 2; 
+            
+            const w = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width || 800;
+            const h = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height || 1000;
+            
+            // 只有第一頁需要預留標題空間
+            const titleHeight = (isFirstPage && titleText) ? 80 : 0; 
+            const canvasHeight = h + titleHeight + 40; 
+            const canvasWidth = w + 40;
+
             const canvas = document.createElement("canvas");
-            canvas.width = (maxWidth + 40) * exportScale;
-            canvas.height = totalHeight * exportScale;
+            canvas.width = canvasWidth * exportScale;
+            canvas.height = canvasHeight * exportScale;
             const ctx = canvas.getContext("2d");
             ctx.scale(exportScale, exportScale);
 
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            if (titleText) {
+            if (isFirstPage && titleText) {
                 ctx.fillStyle = "#0f172a";
                 ctx.font = "bold 34px sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText(titleText, (maxWidth + 40) / 2, 50);
+                ctx.fillText(titleText, canvasWidth / 2, 50);
             }
 
-            let currentY = titleText ? 80 : 20;
+            const currentY = (isFirstPage && titleText) ? 80 : 20;
 
-            for (let i = 0; i < svgs.length; i++) {
-                const originalSvg = svgs[i];
-                const svg = originalSvg.cloneNode(true); 
-                
-                const w = parseInt(originalSvg.getAttribute("width")) || originalSvg.getBoundingClientRect().width || 800;
-                const h = parseInt(originalSvg.getAttribute("height")) || originalSvg.getBoundingClientRect().height || 1000;
-                svg.setAttribute("width", w);
-                svg.setAttribute("height", h);
+            const clonedSvg = svg.cloneNode(true); 
+            clonedSvg.setAttribute("width", w);
+            clonedSvg.setAttribute("height", h);
 
-                let svgString = new XMLSerializer().serializeToString(svg);
-                if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
-                    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
-                }
-                
-                const b64 = btoa(unescape(encodeURIComponent(svgString)));
-                const dataUrl = 'data:image/svg+xml;base64,' + b64;
-
-                await new Promise((resolve) => {
-                    const img = new Image();
-                    img.onload = function () {
-                        ctx.drawImage(img, 20, currentY);
-                        resolve();
-                    };
-                    img.onerror = resolve; 
-                    img.src = dataUrl;
-                });
-
-                currentY += pageHeights[i] + 20;
+            let svgString = new XMLSerializer().serializeToString(clonedSvg);
+            if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
             }
+            
+            const b64 = btoa(unescape(encodeURIComponent(svgString)));
+            const dataUrl = 'data:image/svg+xml;base64,' + b64;
+
+            await new Promise((resolve) => {
+                const img = new Image();
+                img.onload = function () {
+                    ctx.drawImage(img, 20, currentY);
+                    resolve();
+                };
+                img.onerror = resolve; 
+                img.src = dataUrl;
+            });
 
             const finalDataUrl = canvas.toDataURL("image/png", 1.0);
-
-            try {
-                const link = document.createElement("a");
-                link.download = baseName + ".png";
-                link.href = finalDataUrl;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } catch (e) {
-            }
-
-            showExportModal(finalDataUrl);
+            
+            // 彈出預覽視窗讓使用者長按儲存
+            showExportModal(finalDataUrl, pageIndex + 1);
         }
 
-        function showExportModal(dataUrl) {
+        function showExportModal(dataUrl, pageNum) {
             const overlay = document.createElement("div");
             overlay.style.position = "fixed";
             overlay.style.top = "0";
@@ -1112,7 +1129,7 @@
             overlay.style.justifyContent = "center";
             
             const hint = document.createElement("div");
-            hint.innerHTML = "✅ 圖片已產生！<br><span style='font-size:15px; color:#fbbf24;'>👉 請 <b>長按下方圖片</b>，並選擇「儲存圖片」或「分享」</span>";
+            hint.innerHTML = `✅ <b>第 ${pageNum} 頁</b> 圖片已產生！<br><span style='font-size:15px; color:#fbbf24;'>👉 請 <b>長按下方圖片</b>，並選擇「儲存圖片」或「分享」</span>`;
             hint.style.color = "white";
             hint.style.fontSize = "20px";
             hint.style.fontWeight = "bold";
