@@ -1,89 +1,1088 @@
-async function exportImage() {
-    const svgs = document.querySelectorAll(".vexflow-page svg");
-    if (svgs.length === 0) {
-        alert("沒有樂譜可以匯出！");
-        return;
-    }
-
-    const titleEl = document.getElementById('displayTitle');
-    const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
-    const baseName = titleText ? titleText : "Clare_Music_Score";
-
-    const exportScale = 2; // 2 倍高畫質匯出
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡雅音樂教室 Clare Music Studio - 五線譜製譜工作室</title>
     
-    // 1. 計算所有頁面的總高度與最大寬度
-    let totalHeight = (titleText ? 80 : 20); 
-    let maxWidth = 0;
-    let pageHeights = [];
-    
-    for (let i = 0; i < svgs.length; i++) {
-        const svg = svgs[i];
-        const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
-        const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
-        if (width > maxWidth) maxWidth = width;
-        pageHeights.push(height);
-        totalHeight += height + 20; // 每頁底部加入 20px 緩衝區
-    }
+    <!-- 載入專業樂譜引擎與音色庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
-    // 2. 建立單一超大畫布，用來容納所有樂譜
-    const canvas = document.createElement("canvas");
-    canvas.width = (maxWidth + 40) * exportScale;
-    canvas.height = totalHeight * exportScale;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(exportScale, exportScale);
+    <style>
+        :root {
+            --c-red: #E74C3C;
+            --d-orange: #E67E22;
+            --e-yellow: #F1C40F;
+            --f-green: #2ECC71;
+            --g-cyan: #1ABC9C;
+            --a-blue: #2980B9;
+            --b-purple: #8E44AD;
+        }
 
-    // 填滿純白背景（避免背景變透明）
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, "PingFang HK", "Microsoft JhengHei", sans-serif; 
+            text-align: center; background-color: #f1f5f9; padding: 12px; margin: 0; color: #1e293b;
+            user-select: none; 
+        }
 
-    // 繪製大標題
-    if (titleText) {
-        ctx.fillStyle = "#0f172a";
-        ctx.font = "bold 34px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(titleText, (maxWidth + 40) / 2, 50);
-    }
+        .header { margin-bottom: 8px; }
+        .studio-tag { color: #8e44ad; font-size: 13px; font-weight: bold; letter-spacing: 2px; }
+        h1 { margin: 2px 0 0 0; font-size: 22px; color: #0f172a; }
 
-    let currentY = titleText ? 80 : 20;
+        /* 頂部操作列 */
+        .top-bar {
+            display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;
+        }
+        .btn { 
+            padding: 7px 15px; font-size: 13px; border-radius: 20px; border: none; 
+            cursor: pointer; color: white; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: 0.15s; display: inline-flex; align-items: center; gap: 5px;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-teacher { background: #1e293b; }
+        .btn-student { background: #e11d48; }
+        .btn-export { background: #059669; }
+        .btn-export-img { background: #0ea5e9; } 
+        .btn-play { background: #7c3aed; }
 
-    // 3. 逐頁安全地將 SVG 繪製入畫布中
-    for (let i = 0; i < svgs.length; i++) {
-        const svg = svgs[i];
-        let svgString = new XMLSerializer().serializeToString(svg);
-        if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
-            svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+        /* 核心兩步切換 */
+        .workflow-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+        .step-tab {
+            padding: 8px 20px; font-size: 14px; font-weight: bold; border-radius: 10px;
+            border: 2px solid #cbd5e1; background: white; color: #64748b; cursor: pointer;
+            transition: 0.2s; display: flex; align-items: center; gap: 6px;
+        }
+        .step-tab.active {
+            background: #2563eb; color: white; border-color: #2563eb;
+            box-shadow: 0 4px 10px rgba(37,99,235,0.25);
+        }
+
+        /* 手鈴配色指引 */
+        .bell-guide-container {
+            max-width: 980px; margin: 0 auto 10px auto; background: white; border-radius: 10px;
+            padding: 5px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); display: flex; 
+            align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+        }
+        .bell-guide-title { font-size: 11px; font-weight: bold; color: #64748b; }
+        .bell-guide-pill {
+            display: inline-flex; align-items: center; padding: 2px 6px;
+            border-radius: 10px; font-size: 11px; font-weight: bold; color: white;
+        }
+
+        /* 控制台 */
+        .panel-box {
+            background: white; padding: 12px 15px; border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin: 0 auto 12px auto;
+            max-width: 980px; display: flex; flex-direction: column; gap: 8px; align-items: center;
+        }
+        .control-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; align-items: center; width: 100%; }
+        .control-group { 
+            display: flex; align-items: center; gap: 5px; background: #f8fafc; 
+            padding: 4px 8px; border-radius: 8px; font-size: 13px; border: 1px solid #e2e8f0;
+        }
+        .control-group label { font-weight: bold; color: #334155; }
+        select, input[type="text"], textarea { 
+            padding: 4px 8px; font-size: 13px; border-radius: 6px; border: 1px solid #cbd5e1; background: white;
+        }
+
+        .pill-group { display: flex; gap: 3px; }
+        .pill-btn {
+            border: 1px solid #cbd5e1; background: white; color: #334155; padding: 4px 8px;
+            border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s;
+        }
+        .pill-btn:hover { background: #f1f5f9; }
+        .pill-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+
+        .hand-toggle-btn {
+            padding: 4px 10px; border-radius: 14px; font-weight: bold; cursor: pointer; border: 2px solid transparent; font-size: 12px;
+        }
+        .hand-active-rh { background: #fee2e2; color: #b91c1c; border-color: #ef4444; }
+        .hand-active-lh { background: #e0e7ff; color: #3730a3; border-color: #6366f1; }
+
+        /* 彩虹琴鍵盤 */
+        .keyboard { display: flex; justify-content: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+        .note-btn { 
+            width: 52px; height: 52px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.7); 
+            cursor: pointer; box-shadow: 0 3px 5px rgba(0,0,0,0.1); 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            line-height: 1.1; transition: transform 0.1s;
+        }
+        .note-btn:active { transform: scale(0.92); }
+        .note-btn .solfege { font-size: 13px; font-weight: 800; }
+        .note-btn .pitch { font-size: 9px; opacity: 0.9; font-weight: 700; }
+        .note-btn.rest-btn { border: 2px dashed #94a3b8; background: #f8fafc; color: #64748b; }
+        .note-btn.back-btn { border: 2px solid #ef4444; background: #fef2f2; color: #ef4444; width: 66px; border-radius: 26px; }
+
+        .c-red { background-color: var(--c-red); color: white; }
+        .d-orange { background-color: var(--d-orange); color: white; }
+        .e-yellow { background-color: var(--e-yellow); color: #1e293b; }
+        .f-green { background-color: var(--f-green); color: white; }
+        .g-cyan { background-color: var(--g-cyan); color: white; }
+        .a-blue { background-color: var(--a-blue); color: white; }
+        .b-purple { background-color: var(--b-purple); color: white; }
+
+        /* 樂譜畫布容器 */
+        .score-area { 
+            background: white; border: 2px dashed #cbd5e1; 
+            border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 980px;
+            padding: 30px 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.04);
+            display: flex; flex-direction: column; align-items: center;
+            cursor: pointer;
         }
         
-        // 使用 Blob 替代 btoa，徹底解決特殊字元或長度超載導致的破圖問題
-        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
+        #vexflow-canvas {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #vexflow-canvas svg {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .hidden { display: none !important; }
 
-        await new Promise((resolve) => {
-            const img = new Image();
-            img.onload = function () {
-                ctx.drawImage(img, 20, currentY);
-                URL.revokeObjectURL(url); // 清理記憶體
-                resolve();
-            };
-            img.onerror = function() {
-                URL.revokeObjectURL(url);
-                resolve();
-            };
-            img.src = url;
+        /* 標題樣式 */
+        .sheet-title { width: 100%; font-weight: 800; color: #0f172a; margin-bottom: 20px; text-align: center; }
+        .title-size-S { font-size: 18px; }
+        .title-size-M { font-size: 24px; }
+        .title-size-L { font-size: 30px; }
+        .title-size-XL { font-size: 38px; }
+
+        /* 列印與 PDF 匯出嘅完美置中排版 */
+        @media print {
+            @page { margin: 10mm; size: portrait; }
+            body { background: white; padding: 0; margin: 0; }
+            .header, .top-bar, .workflow-tabs, .panel-box, #keyboardArea, #studentControls, .bell-guide-container { display: none !important; }
+            
+            .score-area { 
+                border: none !important; box-shadow: none !important; 
+                width: 100% !important; max-width: 100% !important; 
+                padding: 0 !important; cursor: default; 
+                display: block !important;
+            }
+            
+            .vexflow-page {
+                page-break-after: always;
+                display: block !important; 
+                text-align: center !important; 
+                width: 100% !important;
+            }
+            .vexflow-page svg {
+                display: inline-block !important; 
+                margin: 0 auto !important;
+            }
+            .vexflow-page:last-child {
+                page-break-after: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="studio-tag">卡雅音樂教室 Clare Music Studio</div>
+        <h1>🎹 五線譜製譜工作室</h1>
+    </div>
+
+    <!-- 頂部通用導航列 -->
+    <div class="top-bar">
+        <button id="modeBtn" class="btn btn-teacher" onclick="toggleMode()">🧑‍🏫 老師端 Teacher</button>
+        <button class="btn btn-play" onclick="playAll()">▶️ 雙手播放 Play</button>
+        <button class="btn btn-export" onclick="window.print()">📄 匯出 PDF</button>
+        <button class="btn btn-export-img" onclick="exportImage()">🖼️ 匯出圖片</button>
+
+        <div class="control-group" style="background: white;">
+            <label>譜表:</label>
+            <select id="staffModeSelect" onchange="renderScore()">
+                <option value="grand" selected>大譜表 (𝄞+𝄢)</option>
+                <option value="treble">單高音 (𝄞)</option>
+                <option value="bass">單低音 (𝄢)</option>
+            </select>
+        </div>
+
+        <div class="control-group" style="background: white;">
+            <label>拍號:</label>
+            <select id="timeSigSelect" onchange="onLyricsInput()">
+                <option value="4/4" selected>4/4</option>
+                <option value="3/4">3/4</option>
+                <option value="2/4">2/4</option>
+            </select>
+        </div>
+        
+        <div class="control-group" style="background: white;">
+            <label>行/頁:</label>
+            <select id="linesPerPageSelect" onchange="renderScore()">
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5" selected>5</option>
+                <option value="6">6</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 手鈴指引條 -->
+    <div class="bell-guide-container">
+        <span class="bell-guide-title">🔔 彩虹手鈴配色指引 Bell Guide:</span>
+        <span class="bell-guide-pill c-red">1 Do (C)</span>
+        <span class="bell-guide-pill d-orange">2 Re (D)</span>
+        <span class="bell-guide-pill e-yellow">3 Mi (E)</span>
+        <span class="bell-guide-pill f-green">4 Fa (F)</span>
+        <span class="bell-guide-pill g-cyan">5 Sol (G)</span>
+        <span class="bell-guide-pill a-blue">6 La (A)</span>
+        <span class="bell-guide-pill b-purple">7 Ti (B)</span>
+        <span class="bell-guide-pill c-red">1̇ High C 🔴</span>
+    </div>
+
+    <!-- 核心兩步切換 -->
+    <div class="workflow-tabs">
+        <button class="step-tab active" id="tabStep1" onclick="switchStep(1)">① 輸入歌詞 Input Lyrics</button>
+        <button class="step-tab" id="tabStep2" onclick="switchStep(2)">② 輸入音階 Input Notes</button>
+    </div>
+
+    <!-- 步驟一控制台 -->
+    <div id="step1Panel" class="panel-box">
+        <div class="control-row">
+            <div class="control-group">
+                <label>標題 Title:</label>
+                <input type="text" id="titleInput" placeholder="例: 瑪利有隻小綿羊" style="width: 140px;" oninput="updateTitle()">
+            </div>
+            <div class="control-group">
+                <label>尺寸:</label>
+                <select id="titleSizeSelect" onchange="updateTitle()">
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L" selected>L</option>
+                    <option value="XL">XL</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>速度 Tempo:</label>
+                <select id="bpmSelect">
+                    <option value="60">60 (慢)</option>
+                    <option value="90" selected>90 (中)</option>
+                    <option value="120">120 (快)</option>
+                </select>
+            </div>
+        </div>
+        <div class="control-row" style="width: 100%; max-width: 680px;">
+            <div style="display:flex; flex-direction:column; width: 100%; text-align:left;">
+                <label style="font-size:12px; font-weight:bold; color:#475569; margin-bottom:4px;">
+                    📝 輸入完整歌詞（自動生成嚴格對齊的佔位符）：
+                </label>
+                <textarea id="fullLyricsInput" style="height:65px; width:100%; font-size:14px;" placeholder="例: 瑪莉有隻小綿羊 (💡 如不需要歌詞，可直接略過此步入音階)" oninput="onLyricsInput()"></textarea>
+            </div>
+        </div>
+        <div style="font-size: 12px; color: #64748b;">
+            💡 打完歌詞後，點擊「<b>② 輸入音階 Input Notes</b>」進入填音階模式。
+        </div>
+    </div>
+
+    <!-- 步驟二控制台 -->
+    <div id="step2Panel" class="panel-box hidden">
+        <div class="control-row">
+            <div class="control-group" style="background: #eef2ff;">
+                <label>聲部:</label>
+                <button type="button" id="btnRH" class="hand-toggle-btn hand-active-rh" onclick="setHand('RH')">𝄞 右手 (RH)</button>
+                <button type="button" id="btnLH" class="hand-toggle-btn" onclick="setHand('LH')">𝄢 左手 (LH)</button>
+            </div>
+            <div class="control-group">
+                <label>拍長:</label>
+                <div class="pill-group" id="beatPills">
+                    <button class="pill-btn" data-val="0.5" onclick="setBeat(0.5)">0.5 拍</button>
+                    <button class="pill-btn active" data-val="1" onclick="setBeat(1)">1 拍</button>
+                    <button class="pill-btn" data-val="2" onclick="setBeat(2)">2 拍</button>
+                    <button class="pill-btn" data-val="4" onclick="setBeat(4)">4 拍</button>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>升降:</label>
+                <div class="pill-group" id="accPills">
+                    <button class="pill-btn active" data-val="" onclick="setAcc('')">無</button>
+                    <button class="pill-btn" data-val="#" onclick="setAcc('#')">#</button>
+                    <button class="pill-btn" data-val="b" onclick="setAcc('b')">b</button>
+                    <button class="pill-btn" data-val="n" onclick="setAcc('n')">♮</button>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>指法:</label>
+                <div class="pill-group" id="fingeringPills">
+                    <button class="pill-btn active" data-val="" onclick="setFingering('')">無</button>
+                    <button class="pill-btn" data-val="1" onclick="setFingering('1')">1</button>
+                    <button class="pill-btn" data-val="2" onclick="setFingering('2')">2</button>
+                    <button class="pill-btn" data-val="3" onclick="setFingering('3')">3</button>
+                    <button class="pill-btn" data-val="4" onclick="setFingering('4')">4</button>
+                    <button class="pill-btn" data-val="5" onclick="setFingering('5')">5</button>
+                </div>
+            </div>
+            <div class="control-group">
+                <label>音域:</label>
+                <div class="pill-group" id="octavePills">
+                    <button class="pill-btn" data-val="-1" onclick="setOctave(-1)">低音 (·底)</button>
+                    <button class="pill-btn active" data-val="0" onclick="setOctave(0)">中音</button>
+                    <button class="pill-btn" data-val="1" onclick="setOctave(1)">高音 (·頂)</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="font-size: 13px; font-weight:bold; color: #2563eb; margin-top:2px;">
+            ⌨️ <b>直接點擊樂譜上的音符修改。</b> 或按鍵盤 <b>1~7</b> 填入，<b>Backspace</b> 清除：
+        </div>
+
+        <!-- 彩虹琴鍵盤 -->
+        <div class="keyboard" id="keyboardArea">
+            <button class="note-btn c-red" onclick="processInput('C', 'Do', '1', '#E74C3C', false)"><span class="solfege">Do</span><span class="pitch">1 / C</span></button>
+            <button class="note-btn d-orange" onclick="processInput('D', 'Re', '2', '#E67E22', false)"><span class="solfege">Re</span><span class="pitch">2 / D</span></button>
+            <button class="note-btn e-yellow" onclick="processInput('E', 'Mi', '3', '#F1C40F', false)"><span class="solfege">Mi</span><span class="pitch">3 / E</span></button>
+            <button class="note-btn f-green" onclick="processInput('F', 'Fa', '4', '#2ECC71', false)"><span class="solfege">Fa</span><span class="pitch">4 / F</span></button>
+            <button class="note-btn g-cyan" onclick="processInput('G', 'Sol', '5', '#1ABC9C', false)"><span class="solfege">Sol</span><span class="pitch">5 / G</span></button>
+            <button class="note-btn a-blue" onclick="processInput('A', 'La', '6', '#2980B9', false)"><span class="solfege">La</span><span class="pitch">6 / A</span></button>
+            <button class="note-btn b-purple" onclick="processInput('B', 'Ti', '7', '#8E44AD', false)"><span class="solfege">Ti</span><span class="pitch">7 / B</span></button>
+            <button class="note-btn rest-btn" onclick="processInput('Rest', '休', '0', '#94a3b8', true)"><span class="solfege">X</span><span class="pitch">休止</span></button>
+            <button class="note-btn back-btn" onclick="backspaceDelete()"><span style="font-size:16px;">⌫</span><span style="font-size:10px; font-weight:bold;">清除</span></button>
+        </div>
+    </div>
+
+    <!-- 學生端互動提示 -->
+    <div id="studentControls" class="hidden">
+        <p style="font-size: 18px; color: #e11d48; font-weight: bold; margin: 10px 0;">
+            🔔 演奏模式開啟！點擊音符可發聲。
+        </p>
+    </div>
+
+    <!-- 樂譜主畫布 (VexFlow 引擎生成區) -->
+    <div class="score-area" id="scoreArea">
+        <div id="displayTitle" class="sheet-title title-size-L hidden"></div>
+        <div id="vexflow-canvas"></div>
+    </div>
+
+    <script>
+        const { Renderer, Stave, StaveNote, Formatter, Dot, Annotation, StaveConnector, Voice, Beam, GhostNote, Accidental } = Vex.Flow;
+        
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        
+        let globalSynth = null; 
+        function getSynth() {
+            if (!globalSynth) {
+                globalSynth = new Tone.PolySynth(Tone.Synth, { volume: 8 }).toDestination();
+            }
+            return globalSynth;
+        }
+
+        let isTeacherMode = true;
+        let currentStep = 1;
+        let currentHand = 'RH'; 
+        let isPlayingAll = false;
+        
+        let cursorIndex = 0; 
+        let currentBeat = 1;
+        let currentFingering = '';
+        let currentAccidental = '';
+        let currentOctave = 0; 
+
+        let measures = [];
+        let clickTargets = []; 
+
+        function isVoiceWholeRest(arr) {
+            if (!arr || arr.length === 0) return true;
+            if (arr.length === 1 && (arr[0].beats === 4 || arr[0].beats === 3) && (arr[0].isRest || arr[0].isPlaceholder)) return true;
+            return false;
+        }
+
+        document.getElementById('scoreArea').addEventListener('click', (e) => {
+            if (!isTeacherMode || currentStep !== 2) return;
+            
+            let svgWrapper = e.target.closest('.vexflow-page');
+            if (!svgWrapper) return; 
+            
+            let svg = svgWrapper.querySelector('svg');
+            let pageIndex = parseInt(svgWrapper.dataset.pageIndex);
+
+            let pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            let ctm = svg.getScreenCTM();
+            if (!ctm) return;
+            let svgP = pt.matrixTransform(ctm.inverse());
+            
+            let closest = null;
+            let minDist = Infinity;
+
+            clickTargets.forEach(target => {
+                if (target.page !== pageIndex) return; 
+                
+                let dx = target.x - svgP.x;
+                let dy = target.y - svgP.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = target;
+                }
+            });
+
+            if (closest && minDist < 150) {
+                currentHand = closest.hand;
+                document.getElementById('btnRH').className = 'hand-toggle-btn ' + (closest.hand === 'RH' ? 'hand-active-rh' : '');
+                document.getElementById('btnLH').className = 'hand-toggle-btn ' + (closest.hand === 'LH' ? 'hand-active-lh' : '');
+                
+                cursorIndex = closest.index;
+                renderScore();
+            }
         });
 
-        currentY += pageHeights[i] + 20;
-    }
+        window.addEventListener('keydown', (e) => {
+            if (!isTeacherMode || currentStep !== 2) return;
+            if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
-    // 4. 觸發單次圖片下載（合併成一張長圖）
-    try {
-        const link = document.createElement("a");
-        link.download = baseName + ".png";
-        link.href = canvas.toDataURL("image/png", 1.0);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } catch (e) {
-        alert("圖片產生失敗，可能是樂譜過長導致畫布超載。這種情況請使用「匯出 PDF」。");
-    }
-}
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault();
+                backspaceDelete();
+                return;
+            }
+
+            const map = {
+                '1': ['C', 'Do', '1', '#E74C3C', false],
+                '2': ['D', 'Re', '2', '#E67E22', false],
+                '3': ['E', 'Mi', '3', '#F1C40F', false],
+                '4': ['F', 'Fa', '4', '#2ECC71', false],
+                '5': ['G', 'Sol', '5', '#1ABC9C', false],
+                '6': ['A', 'La', '6', '#2980B9', false],
+                '7': ['B', 'Ti', '7', '#8E44AD', false],
+                '0': ['Rest', '休', '0', '#94a3b8', true],
+                ' ': ['Rest', '休', '0', '#94a3b8', true]
+            };
+            if (map[e.key]) {
+                e.preventDefault();
+                processInput(...map[e.key]);
+            }
+        });
+
+        function switchStep(step) {
+            currentStep = step;
+            document.getElementById('tabStep1').classList.toggle('active', step === 1);
+            document.getElementById('tabStep2').classList.toggle('active', step === 2);
+            document.getElementById('step1Panel').classList.toggle('hidden', step !== 1);
+            document.getElementById('step2Panel').classList.toggle('hidden', step !== 2);
+
+            if (step === 2) cursorIndex = 0;
+            renderScore();
+        }
+
+        function setBeat(val) {
+            currentBeat = parseFloat(val);
+            document.querySelectorAll('#beatPills .pill-btn').forEach(btn => {
+                btn.classList.toggle('active', parseFloat(btn.dataset.val) === currentBeat);
+            });
+        }
+
+        function setAcc(val) {
+            currentAccidental = val;
+            document.querySelectorAll('#accPills .pill-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.val === currentAccidental);
+            });
+        }
+
+        function setFingering(val) {
+            currentFingering = val;
+            document.querySelectorAll('#fingeringPills .pill-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.val === currentFingering);
+            });
+        }
+
+        function setOctave(val) {
+            currentOctave = parseInt(val);
+            document.querySelectorAll('#octavePills .pill-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.val) === currentOctave);
+            });
+        }
+
+        function setHand(hand) {
+            currentHand = hand;
+            document.getElementById('btnRH').className = 'hand-toggle-btn ' + (hand === 'RH' ? 'hand-active-rh' : '');
+            document.getElementById('btnLH').className = 'hand-toggle-btn ' + (hand === 'LH' ? 'hand-active-lh' : '');
+            if (hand === 'LH') setOctave(-1); 
+            else setOctave(0); 
+            cursorIndex = 0;
+            renderScore();
+        }
+
+        function updateTitle() {
+            const text = document.getElementById('titleInput').value;
+            const size = document.getElementById('titleSizeSelect').value;
+            const titleEl = document.getElementById('displayTitle');
+            if (text.trim() !== '') {
+                titleEl.innerText = text;
+                titleEl.className = `sheet-title title-size-${size}`;
+                titleEl.classList.remove('hidden');
+            } else {
+                titleEl.classList.add('hidden');
+            }
+        }
+
+        function onLyricsInput() {
+            const raw = document.getElementById('fullLyricsInput').value;
+            const timeSigVal = document.getElementById('timeSigSelect').value;
+            const maxBeats = parseInt(timeSigVal.split('/')[0]);
+
+            const chars = raw.split('');
+            measures = [];
+            
+            if (chars.length === 0) {
+                let newMeasure = { id: Date.now(), RH: [], LH: [] };
+                for(let i=0; i<maxBeats; i++) {
+                    newMeasure.RH.push({ acc: '', octave: 0, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i });
+                    newMeasure.LH.push({ acc: '', octave: -1, beats: 1, solfege: '', pitch: '', num: '', color: '#cbd5e1', fingering: '', lyric: '', isRest: true, isPlaceholder: true, id: Date.now()+i+999 });
+                }
+                measures.push(newMeasure);
+                renderScore();
+                return;
+            }
+
+            measures = [{ id: 1, RH: [], LH: [] }];
+            let curMeasure = measures[0];
+            let curBeats = 0;
+
+            chars.forEach((ch, idx) => {
+                if (curBeats + 1 > maxBeats) {
+                    measures.push({ id: Date.now() + Math.random(), RH: [], LH: [] });
+                    curMeasure = measures[measures.length - 1];
+                    curBeats = 0;
+                }
+
+                curMeasure.RH.push({
+                    acc: '', octave: 0, beats: 1, solfege: '', pitch: '', num: '',
+                    color: '#cbd5e1', fingering: '', lyric: ch === ' ' ? '' : ch,
+                    isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + idx
+                });
+
+                curMeasure.LH.push({
+                    acc: '', octave: -1, beats: 1, solfege: '', pitch: '', num: '',
+                    color: '#cbd5e1', fingering: '', lyric: '',
+                    isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + idx + 999
+                });
+
+                curBeats += 1;
+            });
+
+            renderScore();
+        }
+
+        async function playTone(tonePitchStr, beats, isRest) {
+            if (isRest || !tonePitchStr) return;
+            await Tone.start();
+            let synth = getSynth();
+            let durStr = beats === 4 ? "1n" : (beats === 2 ? "2n" : (beats === 1 ? "4n" : "8n"));
+            synth.triggerAttackRelease(tonePitchStr, durStr);
+        }
+
+        function processInput(pitch, solfege, num, colorHex, isRest) {
+            let baseOctave = currentHand === 'RH' ? 4 : 3;
+            let finalOctave = baseOctave + currentOctave;
+            let toneAcc = (currentAccidental === 'n') ? '' : currentAccidental;
+            let tonePitchStr = isRest ? '' : (pitch.toUpperCase() + toneAcc + finalOctave);
+
+            playTone(tonePitchStr, currentBeat, isRest);
+
+            let allSlots = [];
+            measures.forEach((m, mIdx) => {
+                m[currentHand].forEach((n, nIdx) => {
+                    allSlots.push({ mIdx, nIdx, note: n });
+                });
+            });
+
+            if (cursorIndex >= allSlots.length) {
+                const timeSigVal = document.getElementById('timeSigSelect').value;
+                const maxBeats = parseInt(timeSigVal.split('/')[0]);
+                
+                let newMeasure = { id: Date.now() + Math.random(), RH: [], LH: [] };
+                for(let i=0; i<maxBeats; i++) {
+                    newMeasure.RH.push({
+                        acc: '', octave: 0, beats: 1, solfege: '', pitch: '', num: '',
+                        color: '#cbd5e1', fingering: '', lyric: '',
+                        isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i
+                    });
+                    newMeasure.LH.push({
+                        acc: '', octave: -1, beats: 1, solfege: '', pitch: '', num: '',
+                        color: '#cbd5e1', fingering: '', lyric: '',
+                        isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i + 999
+                    });
+                }
+                measures.push(newMeasure);
+                
+                allSlots = [];
+                measures.forEach((m, mIdx) => {
+                    m[currentHand].forEach((n, nIdx) => {
+                        allSlots.push({ mIdx, nIdx, note: n });
+                    });
+                });
+            }
+
+            if (cursorIndex < allSlots.length) {
+                const target = allSlots[cursorIndex];
+                const curMeasureNotes = measures[target.mIdx][currentHand];
+                const noteRef = curMeasureNotes[target.nIdx];
+
+                noteRef.acc = currentAccidental; 
+                noteRef.octave = currentOctave;
+                noteRef.beats = currentBeat; 
+                noteRef.solfege = isRest ? '' : solfege;
+                noteRef.pitch = isRest ? '' : pitch;
+                noteRef.num = isRest ? '' : num;
+                noteRef.color = colorHex;
+                noteRef.fingering = currentFingering;
+                noteRef.isRest = isRest;
+                noteRef.isPlaceholder = false;
+
+                const slotsToAbsorb = Math.floor(currentBeat) - 1;
+                if (slotsToAbsorb > 0) {
+                    for (let s = 0; s < slotsToAbsorb; s++) {
+                        if (target.nIdx + 1 < curMeasureNotes.length && curMeasureNotes[target.nIdx + 1].isPlaceholder) {
+                            curMeasureNotes.splice(target.nIdx + 1, 1);
+                        }
+                    }
+                }
+
+                cursorIndex++;
+                renderScore();
+            }
+        }
+
+        function backspaceDelete() {
+            let allSlots = [];
+            measures.forEach((m, mIdx) => {
+                m[currentHand].forEach((n, nIdx) => {
+                    allSlots.push({ mIdx, nIdx, note: n });
+                });
+            });
+
+            if (allSlots.length === 0) return;
+
+            let targetIdx = cursorIndex;
+            if (targetIdx >= allSlots.length || allSlots[targetIdx].note.isPlaceholder) {
+                if (cursorIndex > 0) cursorIndex--;
+                targetIdx = cursorIndex;
+            }
+
+            const target = allSlots[targetIdx];
+            const noteRef = measures[target.mIdx][currentHand][target.nIdx];
+
+            noteRef.acc = '';
+            noteRef.octave = 1; 
+            noteRef.beats = 1;
+            noteRef.solfege = '';
+            noteRef.pitch = '';
+            noteRef.num = '';
+            noteRef.color = '#cbd5e1';
+            noteRef.fingering = '';
+            noteRef.isRest = true;
+            noteRef.isPlaceholder = true;
+
+            renderScore();
+        }
+
+        function getRestKey(clef, vexDur) {
+            if (clef === 'bass') {
+                return (vexDur === 'w' || vexDur === 'hd') ? "f/3" : "d/3"; 
+            } else {
+                return (vexDur === 'w' || vexDur === 'hd') ? "d/5" : "b/4"; 
+            }
+        }
+
+        function renderScore() {
+            const canvasContainer = document.getElementById("vexflow-canvas");
+            canvasContainer.innerHTML = ""; 
+            clickTargets = []; 
+
+            const clefMode = document.getElementById("staffModeSelect").value;
+            const timeSigStr = document.getElementById("timeSigSelect").value;
+            const timeBeats = parseInt(timeSigStr.split('/')[0]); 
+            const maxLinesPerPage = parseInt(document.getElementById('linesPerPageSelect').value) || 5; 
+
+            let lines = [];
+            const MEASURES_PER_LINE = 2; 
+            for (let i = 0; i < measures.length; i += MEASURES_PER_LINE) {
+                lines.push(measures.slice(i, i + MEASURES_PER_LINE));
+            }
+            let pages = [];
+            for (let i = 0; i < lines.length; i += maxLinesPerPage) {
+                pages.push(lines.slice(i, i + maxLinesPerPage));
+            }
+
+            const lineSpacing = clefMode === 'grand' ? 290 : 150;
+            const topMargin = 50;
+
+            let indexRH = 0;
+            let indexLH = 0;
+
+            pages.forEach((pageLines, pageIndex) => {
+                let maxLineWidth = 0;
+                let lineLayouts = [];
+
+                pageLines.forEach(lineGroup => {
+                    let currentLineWidth = 20;
+                    let mWidths = [];
+                    lineGroup.forEach((measureGroup, mIndex) => {
+                        let requiredWidth = 300 + (mIndex === 0 ? 60 : 0);
+                        mWidths.push(requiredWidth);
+                        currentLineWidth += requiredWidth;
+                    });
+                    lineLayouts.push(mWidths);
+                    if (currentLineWidth > maxLineWidth) maxLineWidth = currentLineWidth;
+                });
+
+                const logicalWidth = maxLineWidth + 80; 
+                const logicalHeight = Math.max(200, pageLines.length * lineSpacing + topMargin + 40);
+
+                let wrapperDiv = document.createElement("div");
+                wrapperDiv.className = "vexflow-page";
+                wrapperDiv.dataset.pageIndex = pageIndex;
+                wrapperDiv.style.marginBottom = "40px";
+                canvasContainer.appendChild(wrapperDiv);
+
+                const renderer = new Renderer(wrapperDiv, Renderer.Backends.SVG);
+                renderer.resize(logicalWidth, logicalHeight);
+                const context = renderer.getContext();
+                context.setViewBox(0, 0, logicalWidth, logicalHeight);
+
+                pageLines.forEach((lineGroup, lineIndex) => {
+                    let startY = lineIndex * lineSpacing + topMargin;
+                    let lineX = 40; 
+                    let mWidths = lineLayouts[lineIndex];
+                    
+                    lineGroup.forEach((measureGroup, mIndex) => {
+                        let mW = mWidths[mIndex];
+                        let mX = lineX;
+                        lineX += mW;
+                        
+                        let isFirstInLine = (mIndex === 0);
+                        let isFirstMeasure = (lineIndex === 0 && mIndex === 0);
+                        
+                        let stave = new Stave(mX, startY, mW);
+                        if (isFirstInLine) stave.addClef(clefMode === 'grand' ? 'treble' : clefMode);
+                        if (isFirstMeasure) stave.addTimeSignature(timeSigStr);
+                        stave.setContext(context).draw();
+                        
+                        let staveBass;
+                        if (clefMode === 'grand') {
+                            staveBass = new Stave(mX, startY + 150, mW);
+                            if (isFirstInLine) staveBass.addClef("bass");
+                            if (isFirstMeasure) staveBass.addTimeSignature(timeSigStr);
+                            staveBass.setContext(context).draw();
+                            
+                            if (isFirstInLine) {
+                                new StaveConnector(stave, staveBass).setType(StaveConnector.type.BRACE).setContext(context).draw();
+                                new StaveConnector(stave, staveBass).setType(StaveConnector.type.SINGLE_LEFT).setContext(context).draw();
+                            }
+                            new StaveConnector(stave, staveBass).setType(StaveConnector.type.SINGLE_RIGHT).setContext(context).draw();
+                        } else {
+                            if (isFirstInLine) new StaveConnector(stave, stave).setType(StaveConnector.type.SINGLE_LEFT).setContext(context).draw();
+                            new StaveConnector(stave, stave).setType(StaveConnector.type.SINGLE_RIGHT).setContext(context).draw();
+                        }
+
+                        function processNotes(dataArr, clefName, trackHand) {
+                            let notes = [];
+                            
+                            if (!dataArr || dataArr.length === 0) {
+                                let ghost = new StaveNote({ 
+                                    keys: [getRestKey(clefName, 'w')], 
+                                    duration: "wr", 
+                                    clef: clefName, 
+                                    auto_stem: false
+                                });
+                                ghost.setStyle({ fillStyle: "transparent", strokeStyle: "transparent" });
+                                notes.push(ghost);
+                                return notes;
+                            }
+                            
+                            dataArr.forEach(d => {
+                                let vexDur = "q";
+                                if (d.beats === 4) vexDur = "w";
+                                else if (d.beats === 3) vexDur = "hd";
+                                else if (d.beats === 2) vexDur = "h";
+                                else if (d.beats === 1) vexDur = "q";
+                                else if (d.beats === 0.5) vexDur = "8";
+                                
+                                let keys = [];
+                                if (d.isRest || d.isPlaceholder) {
+                                    keys = [getRestKey(clefName, vexDur)];
+                                } else {
+                                    let baseOctave = clefName === 'treble' ? 4 : 3;
+                                    let accStr = d.acc ? d.acc : '';
+                                    keys = [d.pitch.toLowerCase() + accStr + '/' + (baseOctave + d.octave)];
+                                }
+                                
+                                let isWholeRest = (vexDur === 'w' || vexDur === 'hd') && (d.isRest || d.isPlaceholder);
+                                let note = new StaveNote({ 
+                                    keys: keys, 
+                                    duration: vexDur + ((d.isRest || d.isPlaceholder) ? "r" : ""), 
+                                    clef: clefName, 
+                                    auto_stem: !(d.isRest || d.isPlaceholder),
+                                    align_center: isWholeRest
+                                });
+                                
+                                note.myHand = trackHand;
+                                note.myIndex = (trackHand === 'RH') ? indexRH : indexLH;
+
+                                if (d.acc && !d.isRest && !d.isPlaceholder) {
+                                    note.addModifier(new Accidental(d.acc), 0);
+                                }
+
+                                let isTargetCursor = (currentStep === 2 && currentHand === trackHand && note.myIndex === cursorIndex);
+
+                                if (d.isPlaceholder) {
+                                    note.setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
+                                } else if (!d.isRest) {
+                                    note.setStyle({ fillStyle: d.color, strokeStyle: d.color });
+                                }
+
+                                if (isTargetCursor) {
+                                    note.setStyle({ fillStyle: '#2563eb', strokeStyle: '#2563eb' });
+                                    note.addModifier(new Annotation("▼").setFont("sans-serif", 16).setVerticalJustification(Annotation.VerticalJustify.TOP), 0);
+                                }
+
+                                if (d.lyric) {
+                                    note.addModifier(new Annotation(d.lyric).setFont("sans-serif", 16, "bold").setVerticalJustification(Annotation.VerticalJustify.BOTTOM), 0);
+                                }
+                                
+                                if (d.fingering) {
+                                    let isStemUp = true;
+                                    if (!d.isRest && !d.isPlaceholder) {
+                                        let pitchLetter = d.pitch.charAt(0).toUpperCase();
+                                        let oct = (clefName === 'treble' ? 4 : 3) + d.octave;
+                                        if (clefName === 'treble') {
+                                            if (oct > 4 || (oct === 4 && pitchLetter === 'B')) isStemUp = false;
+                                        } else {
+                                            if (oct > 3 || (oct === 3 && ['D','E','F','G','A','B'].includes(pitchLetter))) isStemUp = false;
+                                        }
+                                    }
+                                    let fingerPos = isStemUp ? Annotation.VerticalJustify.TOP : Annotation.VerticalJustify.BOTTOM;
+                                    note.addModifier(new Annotation(d.fingering).setFont("sans-serif", 14, "bold").setVerticalJustification(fingerPos), 0);
+                                }
+                                
+                                notes.push(note);
+
+                                if (trackHand === 'RH') indexRH++;
+                                else indexLH++;
+                            });
+                            return notes;
+                        }
+
+                        let tNotes = [], bNotes = [];
+                        let vTreble = null, vBass = null;
+                        let beamsTreble = [], beamsBass = [];
+
+                        if (clefMode === 'grand' || clefMode === 'treble') {
+                            tNotes = processNotes(measureGroup.RH, 'treble', 'RH');
+                            vTreble = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(tNotes);
+                            vTreble.setStave(stave);
+                            beamsTreble = Beam.generateBeams(tNotes.filter(n => !n.isRest()));
+                        }
+                        
+                        if (clefMode === 'grand' || clefMode === 'bass') {
+                            bNotes = processNotes(measureGroup.LH, 'bass', 'LH');
+                            vBass = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(bNotes);
+                            vBass.setStave(clefMode === 'grand' ? staveBass : stave);
+                            beamsBass = Beam.generateBeams(bNotes.filter(n => !n.isRest()));
+                        }
+
+                        let gridNotes = [];
+                        for (let b = 0; b < timeBeats; b++) {
+                            gridNotes.push(new GhostNote({ duration: "q" }));
+                        }
+                        let gridVoice = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(gridNotes);
+                        gridVoice.setStave(stave);
+                        
+                        let isTrebleWhole = isVoiceWholeRest(measureGroup.RH);
+                        let isBassWhole = isVoiceWholeRest(measureGroup.LH);
+
+                        let formatter = new Formatter();
+                        if (vTreble && !isTrebleWhole) formatter.joinVoices([vTreble]);
+                        if (vBass && !isBassWhole) formatter.joinVoices([vBass]);
+                        formatter.joinVoices([gridVoice]);
+                        
+                        let voicesToFormat = [gridVoice];
+                        if (vTreble && !isTrebleWhole) voicesToFormat.push(vTreble);
+                        if (vBass && !isBassWhole) voicesToFormat.push(vBass);
+                        formatter.formatToStave(voicesToFormat, stave);
+
+                        if (vTreble && isTrebleWhole) {
+                            new Formatter().joinVoices([vTreble]).formatToStave([vTreble], stave);
+                        }
+                        if (vBass && isBassWhole) {
+                            new Formatter().joinVoices([vBass]).formatToStave([vBass], clefMode === 'grand' ? staveBass : stave);
+                        }
+                        
+                        if (vTreble) { vTreble.draw(context, stave); beamsTreble.forEach(b => b.setContext(context).draw()); }
+                        if (vBass) { vBass.draw(context, clefMode === 'grand' ? staveBass : stave); beamsBass.forEach(b => b.setContext(context).draw()); }
+                        
+                        if (clefMode === 'grand' || clefMode === 'treble') {
+                            tNotes.forEach(note => {
+                                if (note.myHand) {
+                                    clickTargets.push({ hand: note.myHand, index: note.myIndex, page: pageIndex, x: note.getAbsoluteX(), y: stave.getYForLine(2) });
+                                }
+                            });
+                        }
+                        if (clefMode === 'grand' || clefMode === 'bass') {
+                            let targetStave = clefMode === 'grand' ? staveBass : stave;
+                            bNotes.forEach(note => {
+                                if (note.myHand) {
+                                    clickTargets.push({ hand: note.myHand, index: note.myIndex, page: pageIndex, x: note.getAbsoluteX(), y: targetStave.getYForLine(2) });
+                                }
+                            });
+                        }
+                    });
+                });
+            });
+        }
+
+        async function playAll() {
+            if (isPlayingAll || measures.length === 0) return;
+            await Tone.start();
+            let synth = getSynth();
+            synth.releaseAll();
+            
+            isPlayingAll = true;
+            renderScore();
+
+            const bpm = parseInt(document.getElementById('bpmSelect').value);
+            const beatMs = (60 / bpm) * 1000;
+
+            for (let m = 0; m < measures.length; m++) {
+                if (!isPlayingAll) break;
+                const measure = measures[m];
+
+                const playTrack = async (notes, hand) => {
+                    let baseOctave = hand === 'RH' ? 4 : 3;
+                    for (let n of notes) {
+                        if (!isPlayingAll) break;
+                        let toneAcc = (n.acc === 'n' || !n.acc) ? '' : n.acc;
+                        let tonePitchStr = n.isRest || n.isPlaceholder ? '' : (n.pitch.toUpperCase() + toneAcc + (baseOctave + n.octave));
+                        
+                        playTone(tonePitchStr, n.beats, n.isRest || n.isPlaceholder);
+                        await sleep(n.beats * beatMs);
+                    }
+                };
+
+                await Promise.all([
+                    playTrack(measure.RH, 'RH'),
+                    playTrack(measure.LH, 'LH')
+                ]);
+            }
+            isPlayingAll = false;
+        }
+
+        function toggleMode() {
+            isTeacherMode = !isTeacherMode;
+            const btn = document.getElementById('modeBtn');
+            const tabs = document.querySelector('.workflow-tabs');
+            const s1 = document.getElementById('step1Panel');
+            const s2 = document.getElementById('step2Panel');
+            const student = document.getElementById('studentControls');
+
+            if (isTeacherMode) {
+                btn.innerText = '🧑‍🏫 老師端 Teacher';
+                btn.className = 'btn btn-teacher';
+                tabs.classList.remove('hidden');
+                switchStep(currentStep);
+                student.classList.add('hidden');
+            } else {
+                btn.innerText = '🔔 學生演奏端 Student';
+                btn.className = 'btn btn-student';
+                tabs.classList.add('hidden');
+                s1.classList.add('hidden');
+                s2.classList.add('hidden');
+                student.classList.remove('hidden');
+            }
+            renderScore();
+        }
+
+        async function exportImage() {
+            const svgs = document.querySelectorAll(".vexflow-page svg");
+            if (svgs.length === 0) {
+                alert("沒有樂譜可以匯出！");
+                return;
+            }
+
+            const titleEl = document.getElementById('displayTitle');
+            const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
+            const baseName = titleText ? titleText : "Clare_Music_Score";
+
+            const exportScale = 2;
+            
+            let totalHeight = (titleText ? 80 : 20); 
+            let maxWidth = 0;
+            let pageHeights = [];
+            
+            for (let i = 0; i < svgs.length; i++) {
+                const svg = svgs[i];
+                const width = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
+                const height = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
+                if (width > maxWidth) maxWidth = width;
+                pageHeights.push(height);
+                totalHeight += height + 20; 
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = (maxWidth + 40) * exportScale;
+            canvas.height = totalHeight * exportScale;
+            const ctx = canvas.getContext("2d");
+            ctx.scale(exportScale, exportScale);
+
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (titleText) {
+                ctx.fillStyle = "#0f172a";
+                ctx.font = "bold 34px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(titleText, (maxWidth + 40) / 2, 50);
+            }
+
+            let currentY = titleText ? 80 : 20;
+
+            for (let i = 0; i < svgs.length; i++) {
+                const svg = svgs[i];
+                let svgString = new XMLSerializer().serializeToString(svg);
+                if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+                
+                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+
+                await new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = function () {
+                        ctx.drawImage(img, 20, currentY);
+                        URL.revokeObjectURL(url); 
+                        resolve();
+                    };
+                    img.onerror = function() {
+                        URL.revokeObjectURL(url);
+                        resolve();
+                    };
+                    img.src = url;
+                });
+
+                currentY += pageHeights[i] + 20;
+            }
+
+            try {
+                const link = document.createElement("a");
+                link.download = baseName + ".png";
+                link.href = canvas.toDataURL("image/png", 1.0);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                alert("圖片產生失敗，可能是樂譜過長導致畫布超載。這種情況請使用「匯出 PDF」。");
+            }
+        }
+
+        onLyricsInput();
+    </script>
+</body>
+</html>
