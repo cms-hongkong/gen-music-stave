@@ -362,6 +362,9 @@
     <script>
         const { Renderer, Stave, StaveNote, Formatter, Dot, Annotation, StaveConnector, Voice, Beam, GhostNote, Accidental } = Vex.Flow;
         
+        // 修正：加入 sleep 函數，解決播放時卡住的問題
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        
         let globalSynth = null; 
         function getSynth() {
             if (!globalSynth) {
@@ -879,14 +882,9 @@
                             beamsTreble = Beam.generateBeams(tNotes.filter(n => !n.isRest()));
                         }
                         
+                        // 修正：刪除了會導致錯誤的 globalCounter 邏輯
                         if (clefMode === 'grand' || clefMode === 'bass') {
-                            let tempCounter = globalCounter; 
-                            if(currentHand === 'LH') globalCounter = tempCounter - measureGroup.RH.length; 
-                            
                             bNotes = processNotes(measureGroup.LH, 'bass', 'LH');
-                            
-                            if(currentHand === 'LH') globalCounter = tempCounter; 
-
                             vBass = new Voice({num_beats: timeBeats, beat_value: 4}).setMode(Voice.Mode.SOFT).addTickables(bNotes);
                             vBass.setStave(clefMode === 'grand' ? staveBass : stave);
                             beamsBass = Beam.generateBeams(bNotes.filter(n => !n.isRest()));
