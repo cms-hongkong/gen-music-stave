@@ -143,7 +143,7 @@
         }
 
         #vexflow-canvas svg {
-            /* 移除 max-width:100% 讓 SVG 可以依據 1.5 倍比例真正放大 */
+            /* 移除 max-width:100% 讓 SVG 可以依據比例真正放大 */
             height: auto;
         }
 
@@ -218,7 +218,6 @@
     <div class="top-bar">
         <button id="modeBtn" class="btn btn-teacher" onclick="toggleMode()">🧑‍🏫 老師端 Teacher</button>
         <button class="btn btn-play" onclick="playAll()">▶️ 雙手播放</button>
-        <!-- 🌟 改為調用 exportPDF() 以隱藏游標 -->
         <button class="btn btn-export" onclick="exportPDF()">📄 匯出 PDF</button>
         <button class="btn btn-export-img" onclick="exportImage()">🖼️ 匯出圖片</button>
         
@@ -1081,7 +1080,6 @@
             renderScore();
         }
 
-        // 🌟 匯出 PDF 隱藏游標
         function exportPDF() {
             const savedCursor = cursorIndex;
             cursorIndex = -1; // 暫時移除游標
@@ -1093,7 +1091,7 @@
             }, 100);
         }
 
-        // 🌟 匯出圖片隱藏游標並提升至超高清 4倍 (解決起格問題)
+        // 🌟 匯出圖片原生高解像度渲染 (解決起格問題)
         async function exportImage() {
             const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
@@ -1138,37 +1136,43 @@
             const titleEl = document.getElementById('displayTitle');
             const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
             
-            // 🌟 提升解像度設定：將倍數提高到 4 倍（超高清）
+            // 🌟 提升解像度設定：4 倍超高清
             const exportScale = 4; 
             
-            const w = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width || 800;
-            const h = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height || 1000;
+            const baseW = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width || 800;
+            const baseH = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height || 1000;
             
             const titleHeight = (isFirstPage && titleText) ? 80 : 0; 
-            const canvasHeight = h + titleHeight + 40; 
-            const canvasWidth = w + 40;
+            const canvasWidth = baseW + 40; 
+            const canvasHeight = baseH + titleHeight + 40; 
 
             const canvas = document.createElement("canvas");
+            
+            // 設定 Canvas 實際像素為 4倍大
             canvas.width = canvasWidth * exportScale;
             canvas.height = canvasHeight * exportScale;
             const ctx = canvas.getContext("2d");
-            ctx.scale(exportScale, exportScale);
 
+            // 填滿白底
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // 繪製標題 (字體大小和座標手動乘上倍數)
             if (isFirstPage && titleText) {
                 ctx.fillStyle = "#0f172a";
-                ctx.font = "bold 34px sans-serif";
+                ctx.font = "bold " + (34 * exportScale) + "px sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText(titleText, canvasWidth / 2, 50);
+                ctx.fillText(titleText, canvas.width / 2, 50 * exportScale);
             }
 
             const currentY = (isFirstPage && titleText) ? 80 : 20;
 
             const clonedSvg = svg.cloneNode(true); 
-            clonedSvg.setAttribute("width", w);
-            clonedSvg.setAttribute("height", h);
+            
+            // 🌟 關鍵修復：把 SVG 標籤的 width 和 height 直接設定為 4 倍！
+            // 這樣瀏覽器在將 SVG 轉為圖片時，才會以高解析度渲染，而不會拿低解析度圖片硬拉大。
+            clonedSvg.setAttribute("width", baseW * exportScale);
+            clonedSvg.setAttribute("height", baseH * exportScale);
 
             let svgString = new XMLSerializer().serializeToString(clonedSvg);
             if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
@@ -1181,7 +1185,8 @@
             await new Promise((resolve) => {
                 const img = new Image();
                 img.onload = function () {
-                    ctx.drawImage(img, 20, currentY);
+                    // 將原生高解析度的圖片畫到 Canvas 上
+                    ctx.drawImage(img, 20 * exportScale, currentY * exportScale);
                     resolve();
                 };
                 img.onerror = resolve; 
