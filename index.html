@@ -125,13 +125,13 @@
         .a-blue { background-color: var(--a-blue); color: white; }
         .b-purple { background-color: var(--b-purple); color: white; }
 
-        /* 樂譜畫布容器 */
+        /* 樂譜畫布容器 (支援放大後的橫向捲動) */
         .score-area { 
             background: white; border: 2px dashed #cbd5e1; 
-            border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 980px;
+            border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 1200px;
             padding: 30px 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.04);
             display: flex; flex-direction: column; align-items: center;
-            cursor: pointer;
+            cursor: pointer; overflow-x: auto;
         }
         
         #vexflow-canvas {
@@ -139,9 +139,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-x: auto;
         }
         #vexflow-canvas svg {
-            max-width: 100%;
+            /* 移除 max-width:100% 讓 SVG 可以依據 1.5 倍比例真正放大 */
             height: auto;
         }
         
@@ -156,7 +157,6 @@
 
         /* 列印與 PDF 匯出優化 (完美置中且不被切斷) */
         @media print {
-            /* 強制設定為 A4 尺寸，並加入適當邊界 */
             @page { 
                 size: A4 portrait; 
                 margin: 15mm 10mm; 
@@ -165,7 +165,6 @@
                 background: white; 
                 padding: 0; 
                 margin: 0; 
-                /* 確保背景顏色或圖片被列印出來 (適用於某些瀏覽器設定) */
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -176,21 +175,21 @@
                 width: 100% !important; max-width: 100% !important; 
                 padding: 0 !important; cursor: default; 
                 display: block !important;
+                overflow: visible !important;
             }
             
             .vexflow-page {
-                page-break-after: always; /* 確保每一頁後都會換頁 */
-                page-break-inside: avoid; /* 避免在頁面中間被切斷 */
+                page-break-after: always; 
+                page-break-inside: avoid; 
                 display: block !important; 
                 text-align: center !important; 
-                /* 強制縮放以適應 A4 寬度，避免超出邊界 */
                 width: 100% !important;
                 max-height: 100vh !important; 
             }
             .vexflow-page svg {
                 display: inline-block !important; 
                 margin: 0 auto !important;
-                /* 確保 SVG 內容會根據容器自動縮放 */
+                /* 列印時強制縮放回頁面寬度，避免超出邊界 */
                 max-width: 100% !important;
                 height: auto !important;
             }
@@ -719,6 +718,11 @@
             canvasContainer.innerHTML = ""; 
             clickTargets = []; 
 
+            // ========================================================
+            // 核心修改處：透過等比例縮放技術達成五線譜間距與音符完美放大
+            // ========================================================
+            const SCORE_SCALE = 1.5; // 放大 50%
+
             const clefMode = document.getElementById("staffModeSelect").value;
             const timeSigStr = document.getElementById("timeSigSelect").value;
             const timeBeats = parseInt(timeSigStr.split('/')[0]); 
@@ -766,8 +770,12 @@
                 canvasContainer.appendChild(wrapperDiv);
 
                 const renderer = new Renderer(wrapperDiv, Renderer.Backends.SVG);
-                renderer.resize(logicalWidth, logicalHeight);
+                
+                // 調整實際渲染畫布為放大後的大小
+                renderer.resize(logicalWidth * SCORE_SCALE, logicalHeight * SCORE_SCALE);
                 const context = renderer.getContext();
+                
+                // 設定視圖(viewBox) 為原邏輯尺寸，讓瀏覽器自動等比例放大內容 (間距與音符完美配合)
                 context.setViewBox(0, 0, logicalWidth, logicalHeight);
 
                 pageLines.forEach((lineGroup, lineIndex) => {
@@ -1022,7 +1030,6 @@
             renderScore();
         }
 
-        // --- 全新分頁匯出機制 ---
         async function exportImage() {
             const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
@@ -1030,16 +1037,14 @@
                 return;
             }
 
-            // 如果只有一頁，直接匯出
             if (svgs.length === 1) {
                 generateAndShowImage(0);
                 return;
             }
 
-            // 如果有多頁，先讓使用者選擇要匯出哪一頁
             let pageNum = prompt(`這份樂譜共有 ${svgs.length} 頁。\n請輸入你想匯出的頁碼 (1 到 ${svgs.length})：`, "1");
             
-            if (pageNum === null) return; // 取消
+            if (pageNum === null) return; 
             
             pageNum = parseInt(pageNum);
             if (isNaN(pageNum) || pageNum < 1 || pageNum > svgs.length) {
@@ -1063,7 +1068,6 @@
             const w = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width || 800;
             const h = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height || 1000;
             
-            // 只有第一頁需要預留標題空間
             const titleHeight = (isFirstPage && titleText) ? 80 : 0; 
             const canvasHeight = h + titleHeight + 40; 
             const canvasWidth = w + 40;
@@ -1110,7 +1114,6 @@
 
             const finalDataUrl = canvas.toDataURL("image/png", 1.0);
             
-            // 彈出預覽視窗讓使用者長按儲存
             showExportModal(finalDataUrl, pageIndex + 1);
         }
 
@@ -1173,7 +1176,6 @@
             document.body.appendChild(overlay);
         }
 
-        // --- 全新備份功能 (儲存為 JSON 檔案) ---
         function saveBackup() {
             const title = document.getElementById('titleInput').value || 'Clare_Music_Backup';
             const backupData = {
@@ -1200,7 +1202,6 @@
             URL.revokeObjectURL(url);
         }
 
-        // --- 全新載入功能 (讀取 JSON 檔案) ---
         function loadBackup(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1210,7 +1211,6 @@
                 try {
                     const data = JSON.parse(e.target.result);
                     
-                    // 恢復所有介面設定
                     if (data.title !== undefined) {
                         document.getElementById('titleInput').value = data.title;
                         updateTitle();
@@ -1222,14 +1222,12 @@
                     if (data.linesPerPage) document.getElementById('linesPerPageSelect').value = data.linesPerPage;
                     if (data.lyrics !== undefined) document.getElementById('fullLyricsInput').value = data.lyrics;
                     
-                    // 恢復所有音符陣列
                     if (data.measures && Array.isArray(data.measures)) {
                         measures = data.measures;
                     }
                     
-                    // 將介面切換至步驟二 (音階輸入)
                     switchStep(2);
-                    cursorIndex = 0; // 重置游標到開頭
+                    cursorIndex = 0; 
                     
                     renderScore();
                     alert("✅ 備份載入成功！");
@@ -1238,7 +1236,6 @@
                     alert("❌ 載入失敗：檔案格式不正確或已損壞。");
                 }
                 
-                // 清空 input 讓下次選同一個檔案都能觸發 onchange
                 event.target.value = '';
             };
             reader.readAsText(file);
