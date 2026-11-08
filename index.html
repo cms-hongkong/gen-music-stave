@@ -1093,7 +1093,7 @@
             }, 100);
         }
 
-        // 🌟 匯出圖片隱藏游標
+        // 🌟 匯出圖片隱藏游標並提升至超高清 4倍 (解決起格問題)
         async function exportImage() {
             const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
@@ -1138,7 +1138,8 @@
             const titleEl = document.getElementById('displayTitle');
             const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
             
-            const exportScale = 2; 
+            // 🌟 提升解像度設定：將倍數提高到 4 倍（超高清）
+            const exportScale = 4; 
             
             const w = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width || 800;
             const h = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height || 1000;
