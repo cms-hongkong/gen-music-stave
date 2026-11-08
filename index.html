@@ -589,6 +589,23 @@
                 curBeats += 1;
             });
 
+            // 🌟 自動為最後一小節補滿剩餘的空位
+            if (curBeats > 0 && curBeats < maxBeats) {
+                let remaining = maxBeats - curBeats;
+                for (let i = 0; i < remaining; i++) {
+                    curMeasure.RH.push({
+                        acc: '', octave: 0, beats: 1, solfege: '', pitch: '', num: '',
+                        color: '#cbd5e1', fingering: '', lyric: '',
+                        isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i
+                    });
+                    curMeasure.LH.push({
+                        acc: '', octave: -1, beats: 1, solfege: '', pitch: '', num: '',
+                        color: '#cbd5e1', fingering: '', lyric: '',
+                        isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i + 999
+                    });
+                }
+            }
+
             renderScore();
         }
 
@@ -647,6 +664,9 @@
                 const curMeasureNotes = measures[target.mIdx][currentHand];
                 const noteRef = curMeasureNotes[target.nIdx];
 
+                // 🌟 記住這個位置原本是多少拍
+                const previousBeats = noteRef.beats; 
+
                 noteRef.acc = currentAccidental; 
                 noteRef.octave = currentOctave;
                 noteRef.beats = currentBeat; 
@@ -658,12 +678,26 @@
                 noteRef.isRest = isRest;
                 noteRef.isPlaceholder = false;
 
-                const slotsToAbsorb = Math.floor(currentBeat) - 1;
-                if (slotsToAbsorb > 0) {
+                // 🌟 新增邏輯：動態計算需要吸收或補回的佔位符，嚴格保持小節總拍數！
+                let beatDiff = currentBeat - previousBeats;
+
+                if (beatDiff > 0) {
+                    // 如果新音符更長，吸收後面的空位
+                    let slotsToAbsorb = Math.floor(beatDiff);
                     for (let s = 0; s < slotsToAbsorb; s++) {
                         if (target.nIdx + 1 < curMeasureNotes.length && curMeasureNotes[target.nIdx + 1].isPlaceholder) {
                             curMeasureNotes.splice(target.nIdx + 1, 1);
                         }
+                    }
+                } else if (beatDiff < 0) {
+                    // 如果新音符變短（例如4拍改為1拍），要把空位補回來
+                    let slotsToRestore = Math.floor(-beatDiff);
+                    for (let s = 0; s < slotsToRestore; s++) {
+                        curMeasureNotes.splice(target.nIdx + 1, 0, {
+                            acc: '', octave: currentHand === 'RH' ? 0 : -1, beats: 1, solfege: '', pitch: '', num: '',
+                            color: '#cbd5e1', fingering: '', lyric: '',
+                            isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + s
+                        });
                     }
                 }
 
@@ -689,11 +723,15 @@
             }
 
             const target = allSlots[targetIdx];
-            const noteRef = measures[target.mIdx][currentHand][target.nIdx];
+            const curMeasureNotes = measures[target.mIdx][currentHand];
+            const noteRef = curMeasureNotes[target.nIdx];
+
+            // 🌟 記住刪除前這個音符是多少拍
+            const deletedBeats = noteRef.beats; 
 
             noteRef.acc = '';
             noteRef.octave = 1; 
-            noteRef.beats = 1;
+            noteRef.beats = 1; // 統一退回1拍
             noteRef.solfege = '';
             noteRef.pitch = '';
             noteRef.num = '';
@@ -701,6 +739,17 @@
             noteRef.fingering = '';
             noteRef.isRest = true;
             noteRef.isPlaceholder = true;
+            noteRef.lyric = '';
+
+            // 🌟 如果刪除的音符大於1拍，要把原本吃掉的佔位符吐出來，保持小節總拍數！
+            let beatsToRestore = Math.floor(deletedBeats) - 1;
+            for (let i = 0; i < beatsToRestore; i++) {
+                curMeasureNotes.splice(target.nIdx + 1, 0, {
+                    acc: '', octave: currentHand === 'RH' ? 0 : -1, beats: 1, solfege: '', pitch: '', num: '',
+                    color: '#cbd5e1', fingering: '', lyric: '',
+                    isRest: true, isPlaceholder: true, id: Date.now() + Math.random() + i
+                });
+            }
 
             renderScore();
         }
@@ -719,7 +768,7 @@
             clickTargets = []; 
 
             // ========================================================
-            // 核心修改處：透過等比例縮放技術達成五線譜間距與音符完美放大
+            // 透過等比例縮放技術達成五線譜間距與音符完美放大
             // ========================================================
             const SCORE_SCALE = 1.5; // 放大 50%
 
@@ -775,7 +824,7 @@
                 renderer.resize(logicalWidth * SCORE_SCALE, logicalHeight * SCORE_SCALE);
                 const context = renderer.getContext();
                 
-                // 設定視圖(viewBox) 為原邏輯尺寸，讓瀏覽器自動等比例放大內容 (間距與音符完美配合)
+                // 設定視圖(viewBox) 為原邏輯尺寸，讓瀏覽器自動等比例放大內容
                 context.setViewBox(0, 0, logicalWidth, logicalHeight);
 
                 pageLines.forEach((lineGroup, lineIndex) => {
