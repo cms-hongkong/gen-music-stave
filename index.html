@@ -143,7 +143,7 @@
         }
 
         #vexflow-canvas svg {
-            /* 移除 max-width:100% 讓 SVG 可以依據比例真正放大 */
+            /* 移除 max-width:100% 讓 SVG 可以依據 1.5 倍比例真正放大 */
             height: auto;
         }
 
@@ -1091,7 +1091,7 @@
             }, 100);
         }
 
-        // 🌟 匯出圖片原生高解像度渲染 (解決起格問題)
+        // 🌟 完美像素對齊：原生高解像度渲染，解決起格與縮放比例錯亂問題
         async function exportImage() {
             const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
@@ -1136,9 +1136,10 @@
             const titleEl = document.getElementById('displayTitle');
             const titleText = titleEl && !titleEl.classList.contains('hidden') ? titleEl.innerText : "";
             
-            // 🌟 提升解像度設定：4 倍超高清
-            const exportScale = 4; 
+            // 🌟 匯出放大倍數 (3倍是兼顧超高清且不會導致 iOS Safari 崩潰的完美數值)
+            const exportScale = 3; 
             
+            // 獲取當前樂譜在網頁上的實際渲染像素大小
             const baseW = parseInt(svg.getAttribute("width")) || svg.getBoundingClientRect().width || 800;
             const baseH = parseInt(svg.getAttribute("height")) || svg.getBoundingClientRect().height || 1000;
             
@@ -1148,29 +1149,31 @@
 
             const canvas = document.createElement("canvas");
             
-            // 設定 Canvas 實際像素為 4倍大
+            // 🌟 1. 設定 Canvas 實體像素為 3 倍大小
             canvas.width = canvasWidth * exportScale;
             canvas.height = canvasHeight * exportScale;
             const ctx = canvas.getContext("2d");
+            
+            // 🌟 2. 將 Canvas 繪圖上下文放大 3 倍，接下來所有的繪圖指令只需給「原始座標」即可，它會自動完美放大
+            ctx.scale(exportScale, exportScale);
 
-            // 填滿白底
+            // 填滿白色背景
             ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight); 
 
-            // 繪製標題 (字體大小和座標手動乘上倍數)
+            // 繪製標題
             if (isFirstPage && titleText) {
                 ctx.fillStyle = "#0f172a";
-                ctx.font = "bold " + (34 * exportScale) + "px sans-serif";
+                ctx.font = "bold 34px sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText(titleText, canvas.width / 2, 50 * exportScale);
+                ctx.fillText(titleText, canvasWidth / 2, 50);
             }
 
             const currentY = (isFirstPage && titleText) ? 80 : 20;
 
             const clonedSvg = svg.cloneNode(true); 
             
-            // 🌟 關鍵修復：把 SVG 標籤的 width 和 height 直接設定為 4 倍！
-            // 這樣瀏覽器在將 SVG 轉為圖片時，才會以高解析度渲染，而不會拿低解析度圖片硬拉大。
+            // 🌟 3. 強迫 SVG 字串內部的寬高放大 3 倍，這樣瀏覽器將 SVG 轉為圖片時，就會產生原生的超大高清圖片
             clonedSvg.setAttribute("width", baseW * exportScale);
             clonedSvg.setAttribute("height", baseH * exportScale);
 
@@ -1185,8 +1188,9 @@
             await new Promise((resolve) => {
                 const img = new Image();
                 img.onload = function () {
-                    // 將原生高解析度的圖片畫到 Canvas 上
-                    ctx.drawImage(img, 20 * exportScale, currentY * exportScale);
+                    // 🌟 4. 最關鍵的一步：將那張巨大的高清圖片 (img) 壓回 Canvas 的原始邏輯大小 (baseW, baseH)。
+                    // 因為 Canvas 的上下文 (ctx) 已經被放大了 3 倍，這樣「一縮一放」剛好達到 1:1 的物理像素映射，徹底解決起格和錯位！
+                    ctx.drawImage(img, 20, currentY, baseW, baseH);
                     resolve();
                 };
                 img.onerror = resolve; 
