@@ -125,25 +125,32 @@
         .a-blue { background-color: var(--a-blue); color: white; }
         .b-purple { background-color: var(--b-purple); color: white; }
 
-        /* 樂譜畫布容器 (支援放大後的橫向捲動) */
+        /* =======================================================
+           樂譜畫布容器 (支援放大後的橫向捲動，修復手機左側裁切) 
+           ======================================================= */
         .score-area { 
             background: white; border: 2px dashed #cbd5e1; 
             border-radius: 16px; margin: 0 auto 20px auto; width: 95%; max-width: 1200px;
             padding: 30px 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.04);
-            display: flex; flex-direction: column; align-items: center;
-            cursor: pointer; overflow-x: auto;
+            cursor: pointer; 
+            overflow-x: auto; /* 允許橫向捲動 */
+            display: block;   /* 移除 flex 置中，避免左側被強制裁切 */
         }
         
         #vexflow-canvas {
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow-x: auto;
+            display: block;
         }
+
         #vexflow-canvas svg {
             /* 移除 max-width:100% 讓 SVG 可以依據 1.5 倍比例真正放大 */
             height: auto;
+        }
+
+        /* 確保樂譜在寬螢幕置中，手機窄螢幕時靠左並可向右滑動 */
+        .vexflow-page {
+            margin: 0 auto;
+            width: max-content;
         }
         
         .hidden { display: none !important; }
@@ -185,6 +192,7 @@
                 text-align: center !important; 
                 width: 100% !important;
                 max-height: 100vh !important; 
+                margin: 0 auto !important;
             }
             .vexflow-page svg {
                 display: inline-block !important; 
@@ -589,7 +597,7 @@
                 curBeats += 1;
             });
 
-            // 🌟 自動為最後一小節補滿剩餘的空位
+            // 🌟 自動為最後一小節補滿剩餘的空位 (修復拍數不平衡問題)
             if (curBeats > 0 && curBeats < maxBeats) {
                 let remaining = maxBeats - curBeats;
                 for (let i = 0; i < remaining; i++) {
@@ -678,11 +686,10 @@
                 noteRef.isRest = isRest;
                 noteRef.isPlaceholder = false;
 
-                // 🌟 新增邏輯：動態計算需要吸收或補回的佔位符，嚴格保持小節總拍數！
+                // 🌟 動態計算需要吸收或補回的佔位符，嚴格保持小節總拍數
                 let beatDiff = currentBeat - previousBeats;
 
                 if (beatDiff > 0) {
-                    // 如果新音符更長，吸收後面的空位
                     let slotsToAbsorb = Math.floor(beatDiff);
                     for (let s = 0; s < slotsToAbsorb; s++) {
                         if (target.nIdx + 1 < curMeasureNotes.length && curMeasureNotes[target.nIdx + 1].isPlaceholder) {
@@ -690,7 +697,6 @@
                         }
                     }
                 } else if (beatDiff < 0) {
-                    // 如果新音符變短（例如4拍改為1拍），要把空位補回來
                     let slotsToRestore = Math.floor(-beatDiff);
                     for (let s = 0; s < slotsToRestore; s++) {
                         curMeasureNotes.splice(target.nIdx + 1, 0, {
@@ -741,7 +747,7 @@
             noteRef.isPlaceholder = true;
             noteRef.lyric = '';
 
-            // 🌟 如果刪除的音符大於1拍，要把原本吃掉的佔位符吐出來，保持小節總拍數！
+            // 🌟 如果刪除的音符大於1拍，就把原本吃掉的佔位符吐出來
             let beatsToRestore = Math.floor(deletedBeats) - 1;
             for (let i = 0; i < beatsToRestore; i++) {
                 curMeasureNotes.splice(target.nIdx + 1, 0, {
