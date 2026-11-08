@@ -218,7 +218,8 @@
     <div class="top-bar">
         <button id="modeBtn" class="btn btn-teacher" onclick="toggleMode()">🧑‍🏫 老師端 Teacher</button>
         <button class="btn btn-play" onclick="playAll()">▶️ 雙手播放</button>
-        <button class="btn btn-export" onclick="window.print()">📄 匯出 PDF</button>
+        <!-- 🌟 改為調用 exportPDF() 以隱藏游標 -->
+        <button class="btn btn-export" onclick="exportPDF()">📄 匯出 PDF</button>
         <button class="btn btn-export-img" onclick="exportImage()">🖼️ 匯出圖片</button>
         
         <button class="btn btn-save" onclick="saveBackup()">💾 儲存備份</button>
@@ -497,7 +498,9 @@
             document.getElementById('step1Panel').classList.toggle('hidden', step !== 1);
             document.getElementById('step2Panel').classList.toggle('hidden', step !== 2);
 
-            if (step === 2) cursorIndex = 0;
+            if (step === 2) {
+                cursorIndex = 0;
+            }
             renderScore();
         }
 
@@ -597,7 +600,7 @@
                 curBeats += 1;
             });
 
-            // 🌟 自動為最後一小節補滿剩餘的空位 (修復拍數不平衡問題)
+            // 自動為最後一小節補滿剩餘的空位
             if (curBeats > 0 && curBeats < maxBeats) {
                 let remaining = maxBeats - curBeats;
                 for (let i = 0; i < remaining; i++) {
@@ -672,7 +675,6 @@
                 const curMeasureNotes = measures[target.mIdx][currentHand];
                 const noteRef = curMeasureNotes[target.nIdx];
 
-                // 🌟 記住這個位置原本是多少拍
                 const previousBeats = noteRef.beats; 
 
                 noteRef.acc = currentAccidental; 
@@ -686,7 +688,7 @@
                 noteRef.isRest = isRest;
                 noteRef.isPlaceholder = false;
 
-                // 🌟 動態計算需要吸收或補回的佔位符，嚴格保持小節總拍數
+                // 動態計算需要吸收或補回的佔位符，嚴格保持小節總拍數
                 let beatDiff = currentBeat - previousBeats;
 
                 if (beatDiff > 0) {
@@ -732,12 +734,11 @@
             const curMeasureNotes = measures[target.mIdx][currentHand];
             const noteRef = curMeasureNotes[target.nIdx];
 
-            // 🌟 記住刪除前這個音符是多少拍
             const deletedBeats = noteRef.beats; 
 
             noteRef.acc = '';
             noteRef.octave = 1; 
-            noteRef.beats = 1; // 統一退回1拍
+            noteRef.beats = 1; 
             noteRef.solfege = '';
             noteRef.pitch = '';
             noteRef.num = '';
@@ -747,7 +748,6 @@
             noteRef.isPlaceholder = true;
             noteRef.lyric = '';
 
-            // 🌟 如果刪除的音符大於1拍，就把原本吃掉的佔位符吐出來
             let beatsToRestore = Math.floor(deletedBeats) - 1;
             for (let i = 0; i < beatsToRestore; i++) {
                 curMeasureNotes.splice(target.nIdx + 1, 0, {
@@ -773,10 +773,7 @@
             canvasContainer.innerHTML = ""; 
             clickTargets = []; 
 
-            // ========================================================
-            // 透過等比例縮放技術達成五線譜間距與音符完美放大
-            // ========================================================
-            const SCORE_SCALE = 1.5; // 放大 50%
+            const SCORE_SCALE = 1.5; 
 
             const clefMode = document.getElementById("staffModeSelect").value;
             const timeSigStr = document.getElementById("timeSigSelect").value;
@@ -826,11 +823,9 @@
 
                 const renderer = new Renderer(wrapperDiv, Renderer.Backends.SVG);
                 
-                // 調整實際渲染畫布為放大後的大小
                 renderer.resize(logicalWidth * SCORE_SCALE, logicalHeight * SCORE_SCALE);
                 const context = renderer.getContext();
                 
-                // 設定視圖(viewBox) 為原邏輯尺寸，讓瀏覽器自動等比例放大內容
                 context.setViewBox(0, 0, logicalWidth, logicalHeight);
 
                 pageLines.forEach((lineGroup, lineIndex) => {
@@ -916,7 +911,8 @@
                                     note.addModifier(new Accidental(d.acc), 0);
                                 }
 
-                                let isTargetCursor = (currentStep === 2 && currentHand === trackHand && note.myIndex === cursorIndex);
+                                // 只有在游標索引吻合且沒有設定為 -1（匯出圖片/PDF時）才顯示游標高亮
+                                let isTargetCursor = (currentStep === 2 && currentHand === trackHand && note.myIndex === cursorIndex && cursorIndex !== -1);
 
                                 if (d.isPlaceholder) {
                                     note.setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
@@ -1085,6 +1081,19 @@
             renderScore();
         }
 
+        // 🌟 匯出 PDF 隱藏游標
+        function exportPDF() {
+            const savedCursor = cursorIndex;
+            cursorIndex = -1; // 暫時移除游標
+            renderScore();
+            setTimeout(() => {
+                window.print();
+                cursorIndex = savedCursor; // 恢復游標
+                renderScore();
+            }, 100);
+        }
+
+        // 🌟 匯出圖片隱藏游標
         async function exportImage() {
             const svgs = document.querySelectorAll(".vexflow-page svg");
             if (svgs.length === 0) {
@@ -1092,22 +1101,33 @@
                 return;
             }
 
-            if (svgs.length === 1) {
-                generateAndShowImage(0);
-                return;
-            }
+            // 暫存游標位置並隱藏游標重繪
+            const savedCursor = cursorIndex;
+            cursorIndex = -1;
+            renderScore();
 
-            let pageNum = prompt(`這份樂譜共有 ${svgs.length} 頁。\n請輸入你想匯出的頁碼 (1 到 ${svgs.length})：`, "1");
-            
-            if (pageNum === null) return; 
-            
-            pageNum = parseInt(pageNum);
-            if (isNaN(pageNum) || pageNum < 1 || pageNum > svgs.length) {
-                alert("請輸入有效的頁碼！");
-                return;
+            // 等待一小段時間讓 DOM 確實更新
+            await new Promise(r => setTimeout(r, 50));
+
+            try {
+                if (svgs.length === 1) {
+                    await generateAndShowImage(0);
+                } else {
+                    let pageNum = prompt(`這份樂譜共有 ${svgs.length} 頁。\n請輸入你想匯出的頁碼 (1 到 ${svgs.length})：`, "1");
+                    if (pageNum !== null) {
+                        pageNum = parseInt(pageNum);
+                        if (isNaN(pageNum) || pageNum < 1 || pageNum > svgs.length) {
+                            alert("請輸入有效的頁碼！");
+                        } else {
+                            await generateAndShowImage(pageNum - 1);
+                        }
+                    }
+                }
+            } finally {
+                // 匯出完成後，恢復原本的游標位置
+                cursorIndex = savedCursor;
+                renderScore();
             }
-            
-            generateAndShowImage(pageNum - 1);
         }
 
         async function generateAndShowImage(pageIndex) {
